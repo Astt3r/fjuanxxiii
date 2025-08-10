@@ -1,0 +1,249 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { 
+  CalendarIcon, 
+  ArrowLeftIcon,
+  TagIcon,
+  ClockIcon,
+  UserIcon,
+  ShareIcon
+} from '@heroicons/react/24/outline';
+import { noticiasApi } from '../services/api';
+
+const NoticiaDetalle = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [noticia, setNoticia] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    cargarNoticia();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const cargarNoticia = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await noticiasApi.getById(id);
+      setNoticia(response.data);
+    } catch (error) {
+      console.error('Error al cargar noticia:', error);
+      setError('No se pudo cargar la noticia');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatearFecha = (fecha) => {
+    return new Date(fecha).toLocaleDateString('es-CL', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const calcularTiempoLectura = (contenido) => {
+    const palabras = contenido?.split(' ').length || 0;
+    const minutos = Math.ceil(palabras / 200);
+    return minutos;
+  };
+
+  const compartir = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: noticia.titulo,
+          text: noticia.resumen,
+          url: window.location.href
+        });
+      } catch (error) {
+        console.log('Error al compartir:', error);
+      }
+    } else {
+      // Fallback para navegadores que no soportan Web Share API
+      navigator.clipboard.writeText(window.location.href);
+      alert('Enlace copiado al portapapeles');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="h-64 bg-gray-200"></div>
+              <div className="p-8 space-y-4">
+                <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !noticia) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <div className="container mx-auto px-4 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-16"
+          >
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              {error || 'Noticia no encontrada'}
+            </h1>
+            <p className="text-gray-600 mb-6">
+              La noticia que buscas no existe o ha sido eliminada.
+            </p>
+            <button
+              onClick={() => navigate('/noticias')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Ver todas las noticias
+            </button>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Navegación */}
+      <div className="bg-white border-b pt-20">
+        <div className="container mx-auto px-4 py-4">
+          <Link 
+            to="/noticias"
+            className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <ArrowLeftIcon className="h-4 w-4 mr-2" />
+            Volver a noticias
+          </Link>
+        </div>
+      </div>
+
+      {/* Contenido */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <motion.article
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="bg-white rounded-2xl shadow-lg overflow-hidden"
+          >
+            {/* Imagen destacada */}
+            {noticia.imagen_url && (
+              <div className="h-64 md:h-96 overflow-hidden">
+                <img 
+                  src={noticia.imagen_url} 
+                  alt={noticia.titulo}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            {/* Contenido del artículo */}
+            <div className="p-6 md:p-8">
+              {/* Meta información */}
+              <div className="flex flex-wrap items-center justify-between text-sm text-gray-500 mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center">
+                    <CalendarIcon className="h-4 w-4 mr-1" />
+                    {formatearFecha(noticia.fecha_publicacion)}
+                  </div>
+                  {noticia.categoria && (
+                    <div className="flex items-center">
+                      <TagIcon className="h-4 w-4 mr-1" />
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                        {noticia.categoria}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center">
+                    <ClockIcon className="h-4 w-4 mr-1" />
+                    {calcularTiempoLectura(noticia.contenido)} min de lectura
+                  </div>
+                </div>
+                
+                <button
+                  onClick={compartir}
+                  className="flex items-center text-gray-500 hover:text-blue-600 transition-colors"
+                >
+                  <ShareIcon className="h-4 w-4 mr-1" />
+                  Compartir
+                </button>
+              </div>
+
+              {/* Título */}
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 leading-tight">
+                {noticia.titulo}
+              </h1>
+
+              {/* Resumen */}
+              {noticia.resumen && (
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-8">
+                  <p className="text-lg text-gray-700 leading-relaxed font-medium">
+                    {noticia.resumen}
+                  </p>
+                </div>
+              )}
+
+              {/* Autor */}
+              {noticia.autor && (
+                <div className="flex items-center mb-6 text-gray-600">
+                  <UserIcon className="h-5 w-5 mr-2" />
+                  <span>Por {noticia.autor}</span>
+                </div>
+              )}
+
+              {/* Contenido */}
+              <div 
+                className="prose prose-lg max-w-none text-gray-700 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: noticia.contenido }}
+              />
+
+              {/* Badge destacada */}
+              {noticia.destacada && (
+                <div className="mt-8 inline-flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
+                  ✨ Noticia destacada
+                </div>
+              )}
+            </div>
+          </motion.article>
+
+          {/* Navegación al final */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mt-8 text-center"
+          >
+            <Link 
+              to="/noticias"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center"
+            >
+              <ArrowLeftIcon className="h-4 w-4 mr-2" />
+              Ver más noticias
+            </Link>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default NoticiaDetalle;

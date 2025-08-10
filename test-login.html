@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Test Login</h1>
+    <form id="loginForm">
+        <div>
+            <label>Email:</label>
+            <input type="email" id="email" value="admin@fundacionjuanxxiii.cl" required>
+        </div>
+        <div>
+            <label>Password:</label>
+            <input type="password" id="password" value="admin123" required>
+        </div>
+        <button type="submit">Login</button>
+    </form>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        
+        // Configurar axios
+        const api = axios.create({
+            baseURL: API_BASE_URL,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        // Función para extraer datos de respuesta
+        const extractData = (response) => {
+            console.log('Respuesta completa:', response);
+            if (response.data && response.data.success) {
+                return response.data.data || response.data;
+            }
+            return response.data;
+        };
+
+        // Función de login
+        const login = async (credentials) => {
+            try {
+                const response = await api.post('/auth/login', credentials);
+                return extractData(response);
+            } catch (error) {
+                console.error('Error en login:', error);
+                throw new Error(error.response?.data?.message || 'Error al iniciar sesión');
+            }
+        };
+
+        // Manejar envío del formulario
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                resultDiv.innerHTML = '<p>Iniciando sesión...</p>';
+                const result = await login({ email, password });
+                resultDiv.innerHTML = `
+                    <h3>Login exitoso!</h3>
+                    <p><strong>Usuario:</strong> ${result.user.nombre}</p>
+                    <p><strong>Email:</strong> ${result.user.email}</p>
+                    <p><strong>Rol:</strong> ${result.user.rol}</p>
+                    <p><strong>Token:</strong> ${result.token.substring(0, 50)}...</p>
+                `;
+                
+                // Guardar token en localStorage
+                localStorage.setItem('token', result.token);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h3>Error en login:</h3>
+                    <p style="color: red;">${error.message}</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
