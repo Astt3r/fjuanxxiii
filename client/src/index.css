@@ -318,6 +318,67 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Rich Text Editor Fixes */
+[contenteditable="true"] {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+  writing-mode: lr-tb !important;
+}
+
+[contenteditable="true"] * {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+  writing-mode: lr-tb !important;
+}
+
+[contenteditable="true"] p {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+}
+
+[contenteditable="true"] div {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+}
+
+[contenteditable="true"] span {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+}
+
+[contenteditable="true"]:focus {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Fix para el editor de contenido */
+.prose [contenteditable="true"] {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Forzar LTR en todos los elementos hijos del contenteditable */
+[contenteditable] *, 
+[contenteditable="true"] *, 
+.prose [contenteditable] *,
+.prose [contenteditable="true"] * {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+}
+
+/* Textarea fixes */
+textarea {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+}
+
 /* Dark mode support (futuro) */
 @media (prefers-color-scheme: dark) {
   /* Estilos para modo oscuro se pueden agregar aquí */

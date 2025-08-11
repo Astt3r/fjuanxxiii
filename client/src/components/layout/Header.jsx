@@ -9,6 +9,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(null);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,7 +35,16 @@ const Header = () => {
   // Enlaces de navegación
   const navLinks = [
     { to: '/', label: 'Inicio' },
-    { to: '/nosotros', label: 'Nosotros' },
+    { 
+      label: 'Nosotros',
+      hasDropdown: true,
+      dropdownItems: [
+        { to: '/nuestra-historia', label: 'Nuestra Historia' },
+        { to: '/calendario-eventos', label: 'Calendario de Eventos' },
+        { to: '/valores-institucionales', label: 'Valores Institucionales' },
+        { to: '/nuestro-equipo', label: 'Nuestro Equipo' }
+      ]
+    },
     { to: '/pastoral', label: 'Pastoral' },
     { to: '/noticias', label: 'Noticias' },
     { to: '/colegios', label: 'Colegios' },
@@ -43,9 +53,12 @@ const Header = () => {
   ];
 
   // Verificar si un enlace está activo
-  const isActiveLink = (path) => {
+  const isActiveLink = (path, dropdownItems = null) => {
     if (path === '/') {
       return location.pathname === '/';
+    }
+    if (dropdownItems) {
+      return dropdownItems.some(item => location.pathname === item.to);
     }
     return location.pathname.startsWith(path);
   };
@@ -106,28 +119,84 @@ const Header = () => {
 
           {/* Navegación desktop */}
           <div className="hidden lg:flex items-center space-x-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`relative py-2 px-1 text-sm font-medium transition-colors duration-200 ${
-                  isActiveLink(link.to)
-                    ? 'text-primary-600'
-                    : isScrolled
-                    ? 'text-gray-700 hover:text-primary-600'
-                    : 'text-white hover:text-primary-200'
-                }`}
-              >
-                {link.label}
-                {isActiveLink(link.to) && (
-                  <motion.div
-                    layoutId="activeLink"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600"
-                    initial={false}
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
+            {navLinks.map((link, index) => (
+              <div key={link.to || index} className="relative">
+                {link.hasDropdown ? (
+                  <div 
+                    className="relative"
+                    onMouseEnter={() => setDropdownOpen(index)}
+                    onMouseLeave={() => setDropdownOpen(null)}
+                  >
+                    <button
+                      className={`relative py-2 px-1 text-sm font-medium transition-colors duration-200 flex items-center ${
+                        isActiveLink(link.to, link.dropdownItems)
+                          ? 'text-primary-600'
+                          : isScrolled
+                          ? 'text-gray-700 hover:text-primary-600'
+                          : 'text-white hover:text-primary-200'
+                      }`}
+                    >
+                      {link.label}
+                      <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      {isActiveLink(link.to, link.dropdownItems) && (
+                        <motion.div
+                          layoutId="activeLink"
+                          className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600"
+                          initial={false}
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                    </button>
+                    
+                    <AnimatePresence>
+                      {dropdownOpen === index && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50"
+                        >
+                          {link.dropdownItems.map((item) => (
+                            <Link
+                              key={item.to}
+                              to={item.to}
+                              className={`block px-4 py-3 text-sm transition-colors hover:bg-primary-50 hover:text-primary-600 first:rounded-t-lg last:rounded-b-lg ${
+                                location.pathname === item.to ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700'
+                              }`}
+                            >
+                              {item.label}
+                            </Link>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <Link
+                    to={link.to}
+                    className={`relative py-2 px-1 text-sm font-medium transition-colors duration-200 ${
+                      isActiveLink(link.to)
+                        ? 'text-primary-600'
+                        : isScrolled
+                        ? 'text-gray-700 hover:text-primary-600'
+                        : 'text-white hover:text-primary-200'
+                    }`}
+                  >
+                    {link.label}
+                    {isActiveLink(link.to) && (
+                      <motion.div
+                        layoutId="activeLink"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600"
+                        initial={false}
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                  </Link>
                 )}
-              </Link>
+              </div>
             ))}
           </div>
 
@@ -196,22 +265,8 @@ const Header = () => {
                         to="/dashboard"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                       >
-                        Dashboard
+                        Panel de Administración
                       </Link>
-                      <Link
-                        to="/dashboard/usuario"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                      >
-                        Mi perfil
-                      </Link>
-                      {user?.rol === 'admin' && (
-                        <Link
-                          to="/dashboard/admin"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          Administración
-                        </Link>
-                      )}
                       <hr className="my-1" />
                       <button
                         onClick={handleLogout}
@@ -284,18 +339,66 @@ const Header = () => {
               className="lg:hidden bg-white border-t border-gray-200 mobile-menu"
             >
               <div className="py-4 space-y-2">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className={`block px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                      isActiveLink(link.to)
-                        ? 'text-primary-600 bg-primary-50'
-                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
+                {navLinks.map((link, index) => (
+                  <div key={link.to || index}>
+                    {link.hasDropdown ? (
+                      <div>
+                        <button
+                          onClick={() => setDropdownOpen(dropdownOpen === index ? null : index)}
+                          className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                            isActiveLink(link.to, link.dropdownItems)
+                              ? 'text-primary-600 bg-primary-50'
+                              : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          {link.label}
+                          <svg 
+                            className={`h-4 w-4 transform transition-transform ${dropdownOpen === index ? 'rotate-180' : ''}`} 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        <AnimatePresence>
+                          {dropdownOpen === index && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="ml-4 mt-2 space-y-1"
+                            >
+                              {link.dropdownItems.map((item) => (
+                                <Link
+                                  key={item.to}
+                                  to={item.to}
+                                  className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
+                                    location.pathname === item.to
+                                      ? 'text-primary-600 bg-primary-50 font-medium'
+                                      : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {item.label}
+                                </Link>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    ) : (
+                      <Link
+                        to={link.to}
+                        className={`block px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                          isActiveLink(link.to)
+                            ? 'text-primary-600 bg-primary-50'
+                            : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    )}
+                  </div>
                 ))}
                 
                 {!isAuthenticated && (

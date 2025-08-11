@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import AuthDebug from '../../components/common/AuthDebug';
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -52,7 +51,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <AuthDebug />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

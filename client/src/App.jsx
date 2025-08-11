@@ -18,6 +18,10 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 // Pages
 import Home from './pages/Home';
 import Nosotros from './pages/Nosotros';
+import NuestraHistoria from './pages/NuestraHistoria';
+import CalendarioEventos from './pages/CalendarioEventos';
+import ValoresInstitucionales from './pages/ValoresInstitucionales';
+import NuestroEquipo from './pages/NuestroEquipo';
 import Pastoral from './pages/Pastoral';
 import Noticias from './pages/Noticias';
 import NoticiaDetalle from './pages/NoticiaDetalle';
@@ -27,11 +31,13 @@ import Protocolos from './pages/ProtocolosFixed';
 import Contacto from './pages/Contacto';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-import Dashboard from './pages/dashboard/Dashboard';
-import UserDashboard from './pages/dashboard/UserDashboard';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import CrearNoticia from './pages/dashboard/CrearNoticia';
-import GestionarNoticias from './pages/dashboard/GestionarNoticias';
+import CrearNoticiaAvanzada from './pages/dashboard/CrearNoticiaAvanzada';
+import CrearEvento from './pages/dashboard/CrearEvento';
+import EditarNoticia from './pages/dashboard/EditarNoticia';
+import EditarEvento from './pages/dashboard/EditarEvento';
+import GestionarContenido from './pages/dashboard/GestionarContenido';
 import DetalleNoticia from './pages/dashboard/DetalleNoticia';
 import NotFound from './pages/NotFound';
 
@@ -63,6 +69,10 @@ function App() {
                     {/* Rutas públicas */}
                     <Route path="/" element={<Home />} />
                     <Route path="/nosotros" element={<Nosotros />} />
+                    <Route path="/nuestra-historia" element={<NuestraHistoria />} />
+                    <Route path="/calendario-eventos" element={<CalendarioEventos />} />
+                    <Route path="/valores-institucionales" element={<ValoresInstitucionales />} />
+                    <Route path="/nuestro-equipo" element={<NuestroEquipo />} />
                     <Route path="/pastoral" element={<Pastoral />} />
                     <Route path="/noticias" element={<Noticias />} />
                     <Route path="/noticias/:id" element={<NoticiaDetalle />} />
@@ -80,28 +90,20 @@ function App() {
                       path="/dashboard" 
                       element={
                         <ProtectedRoute>
-                          <Dashboard />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/dashboard/usuario" 
-                      element={
-                        <ProtectedRoute>
-                          <UserDashboard />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/dashboard/admin" 
-                      element={
-                        <ProtectedRoute requiredRole="admin">
                           <AdminDashboard />
                         </ProtectedRoute>
                       } 
                     />
                     <Route 
                       path="/dashboard/contenido/crear" 
+                      element={
+                        <ProtectedRoute>
+                          <CrearNoticiaAvanzada />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/contenido/crear-basico" 
                       element={
                         <ProtectedRoute>
                           <CrearNoticia />
@@ -112,7 +114,7 @@ function App() {
                       path="/dashboard/contenido" 
                       element={
                         <ProtectedRoute>
-                          <GestionarNoticias />
+                          <GestionarContenido />
                         </ProtectedRoute>
                       } 
                     />
@@ -128,7 +130,33 @@ function App() {
                       path="/dashboard/contenido/editar/:id" 
                       element={
                         <ProtectedRoute>
+                          <EditarNoticia />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/contenido/editar-basico/:id" 
+                      element={
+                        <ProtectedRoute>
                           <CrearNoticia />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    
+                    {/* Rutas de eventos */}
+                    <Route 
+                      path="/dashboard/eventos/crear" 
+                      element={
+                        <ProtectedRoute>
+                          <CrearEvento />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/dashboard/eventos/editar/:id" 
+                      element={
+                        <ProtectedRoute>
+                          <EditarEvento />
                         </ProtectedRoute>
                       } 
                     />
@@ -166,12 +194,12 @@ function App() {
                 },
               }}
             />
+            
+            {/* React Query DevTools - Solo en desarrollo */}
+            {process.env.NODE_ENV === 'development' && (
+              <ReactQueryDevtools initialIsOpen={false} />
+            )}
           </Router>
-          
-          {/* React Query Devtools (solo en desarrollo) */}
-          {process.env.NODE_ENV === 'development' && (
-            <ReactQueryDevtools initialIsOpen={false} />
-          )}
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

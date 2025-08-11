@@ -9,7 +9,7 @@ import {
   UserIcon,
   ShareIcon
 } from '@heroicons/react/24/outline';
-import { noticiasApi } from '../services/api';
+import toast from 'react-hot-toast';
 
 const NoticiaDetalle = () => {
   const { id } = useParams();
@@ -27,27 +27,51 @@ const NoticiaDetalle = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await noticiasApi.getById(id);
-      setNoticia(response.data);
+      
+      const response = await fetch(`http://localhost:5002/api/noticias/${id}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        
+        // La API devuelve {success: true, data: {...}}
+        const noticia = result.data || result;
+        setNoticia(noticia);
+      } else {
+        throw new Error('No se pudo cargar la noticia');
+      }
     } catch (error) {
       console.error('Error al cargar noticia:', error);
       setError('No se pudo cargar la noticia');
+      toast.error('Error al cargar la noticia');
     } finally {
       setLoading(false);
     }
   };
 
   const formatearFecha = (fecha) => {
-    return new Date(fecha).toLocaleDateString('es-CL', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    if (!fecha) return 'Fecha no disponible';
+    
+    try {
+      const fechaObj = new Date(fecha);
+      if (isNaN(fechaObj.getTime())) {
+        return 'Fecha no válida';
+      }
+      
+      return fechaObj.toLocaleDateString('es-CL', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error al formatear fecha:', error);
+      return 'Fecha no disponible';
+    }
   };
 
   const calcularTiempoLectura = (contenido) => {
-    const palabras = contenido?.split(' ').length || 0;
+    if (!contenido) return 0;
+    const palabras = contenido.replace(/<[^>]*>/g, '').split(' ').length;
     const minutos = Math.ceil(palabras / 200);
     return minutos;
   };
@@ -57,7 +81,7 @@ const NoticiaDetalle = () => {
       try {
         await navigator.share({
           title: noticia.titulo,
-          text: noticia.resumen,
+          text: noticia.resumen || noticia.titulo,
           url: window.location.href
         });
       } catch (error) {
@@ -65,8 +89,12 @@ const NoticiaDetalle = () => {
       }
     } else {
       // Fallback para navegadores que no soportan Web Share API
-      navigator.clipboard.writeText(window.location.href);
-      alert('Enlace copiado al portapapeles');
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success('Enlace copiado al portapapeles');
+      } catch (error) {
+        toast.error('No se pudo copiar el enlace');
+      }
     }
   };
 
@@ -147,11 +175,14 @@ const NoticiaDetalle = () => {
           >
             {/* Imagen destacada */}
             {noticia.imagen_url && (
-              <div className="h-64 md:h-96 overflow-hidden">
+              <div className="h-64 md:h-96 overflow-hidden bg-gray-100">
                 <img 
                   src={noticia.imagen_url} 
                   alt={noticia.titulo}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
                 />
               </div>
             )}
@@ -160,10 +191,10 @@ const NoticiaDetalle = () => {
             <div className="p-6 md:p-8">
               {/* Meta información */}
               <div className="flex flex-wrap items-center justify-between text-sm text-gray-500 mb-6">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 flex-wrap">
                   <div className="flex items-center">
                     <CalendarIcon className="h-4 w-4 mr-1" />
-                    {formatearFecha(noticia.fecha_publicacion)}
+                    {formatearFecha(noticia.fecha_publicacion || noticia.created_at)}
                   </div>
                   {noticia.categoria && (
                     <div className="flex items-center">
@@ -211,15 +242,60 @@ const NoticiaDetalle = () => {
               )}
 
               {/* Contenido */}
-              <div 
-                className="prose prose-lg max-w-none text-gray-700 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: noticia.contenido }}
-              />
+              {noticia.contenido && (
+                <div 
+                  className="prose prose-lg max-w-none text-gray-700 leading-relaxed prose-headings:text-gray-900 prose-a:text-blue-600 prose-strong:text-gray-900"
+                  dangerouslySetInnerHTML={{ __html: noticia.contenido }}
+                />
+              )}
+
+              {/* Si no hay contenido pero hay resumen, mostrar el resumen */}
+              {!noticia.contenido && noticia.resumen && (
+                <div className="text-gray-700 leading-relaxed space-y-4">
+                  <p className="text-lg">{noticia.resumen}</p>
+                </div>
+              )}
+
+              {/* Mensaje si no hay contenido */}
+              {!noticia.contenido && !noticia.resumen && (
+                <div className="text-gray-500 italic">
+                  <p>Esta noticia no tiene contenido disponible.</p>
+                </div>
+              )}
+
+              {/* Tags si existen */}
+              {noticia.tags && (
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <div className="flex flex-wrap gap-2">
+                    {(typeof noticia.tags === 'string' ? noticia.tags.split(',') : noticia.tags).map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                      >
+                        {tag.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Badge destacada */}
               {noticia.destacada && (
                 <div className="mt-8 inline-flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
                   ✨ Noticia destacada
+                </div>
+              )}
+
+              {/* Estado de la noticia para admins */}
+              {noticia.estado && (
+                <div className="mt-4">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                    noticia.estado === 'publicado' ? 'bg-green-100 text-green-800' :
+                    noticia.estado === 'borrador' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {noticia.estado.charAt(0).toUpperCase() + noticia.estado.slice(1)}
+                  </span>
                 </div>
               )}
             </div>

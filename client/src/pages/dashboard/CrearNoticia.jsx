@@ -4,21 +4,54 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { noticiasApi } from '../../services/api';
 import toast from 'react-hot-toast';
-
+import SimpleTextEditor from '../../components/common/SimpleTextEditor';
 const CrearNoticia = () => {
   const navigate = useNavigate();
-  const { id } = useParams(); // Para edición
+  const { id } = useParams();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [categorias, setCategorias] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+
   const [formData, setFormData] = useState({
     titulo: '',
+    subtitulo: '',
     resumen: '',
     contenido: '',
     categoria: '',
+    tags: [],
     destacado: false,
-    estado: 'borrador'
+    estado: 'borrador',
+    fechaPublicacion: new Date().toISOString().split('T')[0],
+    imagenPrincipal: '',
+    galeria: [],
+    metaDescripcion: '',
+    metaKeywords: '',
+    autorPersonalizado: '',
+    configuracionVisual: {
+      tema: 'default',
+      tipografia: 'Inter',
+      espaciado: 'normal',
+      anchuraContenido: 'normal'
+    },
+    multimedia: {
+      videos: [],
+      audios: [],
+      documentos: []
+    },
+    seo: {
+      slug: '',
+      metaTitulo: '',
+      metaDescripcion: '',
+      imagenSocial: '',
+      estructuraDatos: true
+    },
+    planificacion: {
+      fechaPublicacion: '',
+      fechaExpiracion: '',
+      audiencia: 'publico',
+      notificaciones: true
+    }
   });
 
   const cargarCategorias = async () => {
@@ -132,6 +165,33 @@ const CrearNoticia = () => {
     }));
   };
 
+  const handleImageUpload = async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      // Usar la misma API que para otras imágenes
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al subir la imagen');
+      }
+      
+      const result = await response.json();
+      return result.url || result.path;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Error al subir la imagen');
+      throw error;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="container-custom py-8 max-w-4xl">
@@ -190,6 +250,8 @@ const CrearNoticia = () => {
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Breve resumen de la noticia (opcional)"
+                  dir="ltr"
+                  style={{ direction: 'ltr', textAlign: 'left' }}
                 />
               </div>
 
@@ -198,15 +260,12 @@ const CrearNoticia = () => {
                 <label htmlFor="contenido" className="block text-sm font-medium text-gray-700 mb-2">
                   Contenido *
                 </label>
-                <textarea
-                  id="contenido"
-                  name="contenido"
+                <SimpleTextEditor
                   value={formData.contenido}
-                  onChange={handleChange}
-                  required
-                  rows={12}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(value) => setFormData(prev => ({ ...prev, contenido: value }))}
+                  onImageUpload={handleImageUpload}
                   placeholder="Escribe el contenido completo de la noticia..."
+                  minHeight="300px"
                 />
               </div>
 

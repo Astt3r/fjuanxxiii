@@ -1,0 +1,520 @@
+import React, { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
+import {
+  BoldIcon,
+  ItalicIcon,
+  UnderlineIcon,
+  LinkIcon,
+  PhotoIcon,
+  ListBulletIcon,
+  NumberedListIcon,
+  CodeBracketIcon,
+  ChatBubbleLeftIcon,
+  TableCellsIcon,
+  PaintBrushIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
+
+const RichTextEditor = ({ 
+  value, 
+  onChange, 
+  onImageUpload, 
+  placeholder = "Comienza a escribir tu contenido aquí...",
+  className = "",
+  showToolbar = true,
+  minHeight = "400px"
+}) => {
+  const editorRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [selectedColor, setSelectedColor] = useState('#000000');
+
+  // Función para interceptar y corregir la inserción de texto
+  const handleBeforeInput = (e) => {
+    // Forzar LTR antes de cualquier inserción
+    forceLTRDirection();
+    
+    // Interceptar la inserción de texto
+    if (e.inputType === 'insertText' || e.inputType === 'insertCompositionText') {
+      e.preventDefault();
+      
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        
+        // Crear un nodo de texto con la dirección forzada
+        const textNode = document.createTextNode(e.data || '');
+        range.insertNode(textNode);
+        
+        // Mover el cursor después del texto insertado
+        range.setStartAfter(textNode);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        // Forzar LTR después de la inserción
+        setTimeout(() => {
+          forceLTRDirection();
+          handleContentChange();
+        }, 0);
+        
+        return false;
+      }
+    }
+  };
+
+  // Función para forzar LTR con máxima agresividad
+  const forceLTRDirection = () => {
+    if (editorRef.current) {
+      const editor = editorRef.current;
+      
+      // Fuerza los estilos en el elemento principal
+      editor.style.direction = 'ltr';
+      editor.style.textAlign = 'left';
+      editor.style.unicodeBidi = 'normal';
+      editor.style.writingMode = 'lr-tb';
+      editor.setAttribute('dir', 'ltr');
+      
+      // Fuerza los estilos en todos los elementos hijos
+      const allElements = editor.querySelectorAll('*');
+      allElements.forEach(element => {
+        element.style.direction = 'ltr';
+        element.style.textAlign = 'left';
+        element.style.unicodeBidi = 'normal';
+        element.style.writingMode = 'lr-tb';
+        element.setAttribute('dir', 'ltr');
+      });
+      
+      // Si hay selección, fuerza la posición del cursor
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const parentElement = range.commonAncestorContainer.parentElement || range.commonAncestorContainer;
+        if (editor.contains(parentElement)) {
+          if (parentElement.style) {
+            parentElement.style.direction = 'ltr';
+            parentElement.style.textAlign = 'left';
+            parentElement.style.unicodeBidi = 'normal';
+            parentElement.style.writingMode = 'lr-tb';
+          }
+        }
+      }
+    }
+  };
+
+  // useEffect para forzar LTR cuando cambia el valor o se monta el componente
+  React.useEffect(() => {
+    forceLTRDirection();
+  }, [value]);
+
+  // useEffect para configurar el editor cuando se monta
+  React.useEffect(() => {
+    if (editorRef.current) {
+      forceLTRDirection();
+      
+      // Observer para detectar cambios en el DOM y forzar LTR
+      const observer = new MutationObserver(() => {
+        forceLTRDirection();
+      });
+      
+      observer.observe(editorRef.current, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+      
+      return () => observer.disconnect();
+    }
+  }, []);
+
+  // Herramientas del editor
+  const formatTools = [
+    { command: 'bold', icon: BoldIcon, tooltip: 'Negrita (Ctrl+B)', shortcut: 'Ctrl+B' },
+    { command: 'italic', icon: ItalicIcon, tooltip: 'Cursiva (Ctrl+I)', shortcut: 'Ctrl+I' },
+    { command: 'underline', icon: UnderlineIcon, tooltip: 'Subrayado (Ctrl+U)', shortcut: 'Ctrl+U' },
+    { command: 'separator' },
+    { 
+      command: 'formatBlock', 
+      value: 'h1', 
+      icon: () => <span className="text-xs font-bold">H1</span>, 
+      tooltip: 'Título 1' 
+    },
+    { 
+      command: 'formatBlock', 
+      value: 'h2', 
+      icon: () => <span className="text-xs font-bold">H2</span>, 
+      tooltip: 'Título 2' 
+    },
+    { 
+      command: 'formatBlock', 
+      value: 'h3', 
+      icon: () => <span className="text-xs font-bold">H3</span>, 
+      tooltip: 'Título 3' 
+    },
+    { command: 'separator' },
+    { command: 'insertUnorderedList', icon: ListBulletIcon, tooltip: 'Lista con viñetas' },
+    { command: 'insertOrderedList', icon: NumberedListIcon, tooltip: 'Lista numerada' },
+    { command: 'separator' },
+    { 
+      command: 'formatBlock', 
+      value: 'blockquote', 
+      icon: ChatBubbleLeftIcon, 
+      tooltip: 'Cita' 
+    },
+    { 
+      command: 'formatBlock', 
+      value: 'pre', 
+      icon: CodeBracketIcon, 
+      tooltip: 'Código' 
+    },
+    { command: 'separator' },
+    { command: 'createLink', icon: LinkIcon, tooltip: 'Insertar enlace', custom: true },
+    { command: 'insertImage', icon: PhotoIcon, tooltip: 'Insertar imagen', custom: true },
+    { command: 'foreColor', icon: PaintBrushIcon, tooltip: 'Color de texto', custom: true }
+  ];
+
+  const blockFormats = [
+    { value: 'p', label: 'Párrafo' },
+    { value: 'h1', label: 'Título 1' },
+    { value: 'h2', label: 'Título 2' },
+    { value: 'h3', label: 'Título 3' },
+    { value: 'h4', label: 'Título 4' },
+    { value: 'blockquote', label: 'Cita' },
+    { value: 'pre', label: 'Código' }
+  ];
+
+  const predefinedColors = [
+    '#000000', '#333333', '#666666', '#999999', '#CCCCCC',
+    '#FF0000', '#FF6600', '#FFCC00', '#33CC00', '#0099CC',
+    '#6633CC', '#CC0099', '#DC2626', '#059669', '#7C3AED'
+  ];
+
+  // Ejecutar comandos del editor
+  const executeCommand = (command, value = null) => {
+    if (command === 'createLink') {
+      setShowLinkDialog(true);
+      return;
+    }
+    
+    if (command === 'insertImage') {
+      fileInputRef.current?.click();
+      return;
+    }
+
+    if (command === 'foreColor') {
+      setShowColorPicker(true);
+      return;
+    }
+
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+    handleContentChange();
+  };
+
+  // Aplicar color
+  const applyColor = (color) => {
+    document.execCommand('foreColor', false, color);
+    setSelectedColor(color);
+    setShowColorPicker(false);
+    editorRef.current?.focus();
+    handleContentChange();
+  };
+
+  // Insertar enlace
+  const insertLink = () => {
+    if (linkUrl.trim()) {
+      document.execCommand('createLink', false, linkUrl);
+      setLinkUrl('');
+      setShowLinkDialog(false);
+      editorRef.current?.focus();
+      handleContentChange();
+    }
+  };
+
+  // Manejar carga de imagen
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      try {
+        // Crear URL temporal para la imagen
+        const imageUrl = URL.createObjectURL(file);
+        
+        // Insertar imagen en el editor
+        const imgHTML = `<img src="${imageUrl}" alt="${file.name}" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px;" />`;
+        document.execCommand('insertHTML', false, imgHTML);
+        
+        // Callback para manejar la carga en el componente padre
+        if (onImageUpload) {
+          onImageUpload(file, imageUrl);
+        }
+        
+        handleContentChange();
+      } catch (error) {
+        console.error('Error al cargar imagen:', error);
+      }
+    }
+    
+    // Limpiar el input
+    event.target.value = '';
+  };
+
+  // Manejar cambios de contenido
+  const handleContentChange = () => {
+    if (editorRef.current && onChange) {
+      // Forzar dirección LTR después de cada cambio
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.style.direction = 'ltr';
+          editorRef.current.style.textAlign = 'left';
+          editorRef.current.style.unicodeBidi = 'normal';
+        }
+      }, 0);
+      
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  // Atajos de teclado
+  const handleKeyDown = (e) => {
+    // Forzar LTR en cada tecla presionada
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.style.direction = 'ltr';
+        editorRef.current.style.textAlign = 'left';
+        editorRef.current.style.unicodeBidi = 'normal';
+      }
+    }, 0);
+
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 'b':
+          e.preventDefault();
+          executeCommand('bold');
+          break;
+        case 'i':
+          e.preventDefault();
+          executeCommand('italic');
+          break;
+        case 'u':
+          e.preventDefault();
+          executeCommand('underline');
+          break;
+        case 'k':
+          e.preventDefault();
+          setShowLinkDialog(true);
+          break;
+        default:
+          break;
+      }
+    }
+  };
+
+  // Insertar tabla
+  const insertTable = () => {
+    const tableHTML = `
+      <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+        <thead>
+          <tr>
+            <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Columna 1</th>
+            <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Columna 2</th>
+            <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Columna 3</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="border: 1px solid #ddd; padding: 8px;">Celda 1</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Celda 2</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Celda 3</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #ddd; padding: 8px;">Celda 4</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Celda 5</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Celda 6</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    document.execCommand('insertHTML', false, tableHTML);
+    handleContentChange();
+  };
+
+  return (
+    <div className={`relative ${className}`}>
+      {/* Input oculto para imágenes */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
+
+      {/* Toolbar */}
+      {showToolbar && (
+        <div className="border-b border-gray-200 p-3 bg-gray-50 rounded-t-lg">
+          <div className="flex items-center space-x-1 flex-wrap gap-1">
+            {/* Selector de formato */}
+            <select 
+              onChange={(e) => executeCommand('formatBlock', e.target.value)}
+              className="text-sm border border-gray-300 rounded px-2 py-1 mr-2"
+            >
+              {blockFormats.map(format => (
+                <option key={format.value} value={format.value}>
+                  {format.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Herramientas de formato */}
+            {formatTools.map((tool, index) => {
+              if (tool.command === 'separator') {
+                return <div key={index} className="w-px h-6 bg-gray-300 mx-1" />;
+              }
+
+              return (
+                <button
+                  key={tool.command + (tool.value || '')}
+                  onClick={() => executeCommand(tool.command, tool.value)}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+                  title={tool.tooltip}
+                >
+                  {typeof tool.icon === 'function' ? (
+                    <tool.icon />
+                  ) : (
+                    <tool.icon className="h-4 w-4" />
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Insertar tabla */}
+            <button
+              onClick={insertTable}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+              title="Insertar tabla"
+            >
+              <TableCellsIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Editor de contenido */}
+      <div
+        ref={editorRef}
+        contentEditable
+        className={`w-full p-4 border border-gray-300 outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent prose prose-lg max-w-none ${
+          showToolbar ? 'rounded-b-lg' : 'rounded-lg'
+        } ${isEditorFocused ? 'ring-2 ring-primary-500' : ''}`}
+        style={{ 
+          minHeight,
+          direction: 'ltr !important',
+          textAlign: 'left !important',
+          unicodeBidi: 'normal !important',
+          writingMode: 'lr-tb !important'
+        }}
+        onFocus={() => {
+          setIsEditorFocused(true);
+          forceLTRDirection();
+        }}
+        onBlur={() => {
+          setIsEditorFocused(false);
+          forceLTRDirection();
+        }}
+        onInput={handleContentChange}
+        onKeyDown={handleKeyDown}
+        onBeforeInput={handleBeforeInput}
+        onPaste={() => {
+          setTimeout(() => forceLTRDirection(), 10);
+        }}
+        dangerouslySetInnerHTML={{ __html: value }}
+        data-placeholder={placeholder}
+        dir="ltr"
+      />
+
+      {/* Diálogo de enlace */}
+      {showLinkDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+          >
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Insertar enlace</h3>
+            <input
+              type="url"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="https://ejemplo.com"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent mb-4"
+              autoFocus
+              onKeyPress={(e) => e.key === 'Enter' && insertLink()}
+            />
+            <div className="flex space-x-3">
+              <button
+                onClick={insertLink}
+                className="flex-1 bg-primary-600 text-white rounded-md px-4 py-2 hover:bg-primary-700 transition-colors"
+              >
+                Insertar
+              </button>
+              <button
+                onClick={() => {
+                  setShowLinkDialog(false);
+                  setLinkUrl('');
+                }}
+                className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Selector de color */}
+      {showColorPicker && (
+        <div className="absolute top-12 left-0 bg-white border border-gray-200 rounded-lg p-3 shadow-lg z-10">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">Color de texto</span>
+            <button
+              onClick={() => setShowColorPicker(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-5 gap-1 mb-2">
+            {predefinedColors.map((color) => (
+              <button
+                key={color}
+                onClick={() => applyColor(color)}
+                className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+                style={{ backgroundColor: color }}
+                title={color}
+              />
+            ))}
+          </div>
+          <input
+            type="color"
+            value={selectedColor}
+            onChange={(e) => applyColor(e.target.value)}
+            className="w-full h-8 border border-gray-300 rounded cursor-pointer"
+          />
+        </div>
+      )}
+
+      {/* Información del editor */}
+      {isEditorFocused && (
+        <div className="text-xs text-gray-500 mt-2">
+          Tip: Usa Ctrl+B para negrita, Ctrl+I para cursiva, Ctrl+K para enlaces
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RichTextEditor;
