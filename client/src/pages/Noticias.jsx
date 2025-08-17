@@ -339,7 +339,7 @@ const Noticias = () => {
 
                       {/* Link */}
                       <Link 
-                        to={`/noticias/${noticia.id}`}
+                        to={`/noticias/${noticia.slug || noticia.id}`}
                         className="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold transition-colors group-hover:translate-x-1 transform duration-200"
                       >
                         Leer más 

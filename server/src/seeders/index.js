@@ -1,5 +1,5 @@
 const { query } = require('../config/database');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 
 const seedDatabase = async () => {
   try {

@@ -171,7 +171,7 @@ const CrearNoticia = () => {
       formData.append('image', file);
       
       // Usar la misma API que para otras imágenes
-      const response = await fetch('/api/upload', {
+  const response = await fetch('/api/uploads/image', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -183,8 +183,10 @@ const CrearNoticia = () => {
         throw new Error('Error al subir la imagen');
       }
       
-      const result = await response.json();
-      return result.url || result.path;
+  const result = await response.json();
+  const url = result?.data?.url || result?.url || result?.data?.path;
+  if (!url) throw new Error('Respuesta de subida sin URL');
+  return url;
     } catch (error) {
       console.error('Error uploading image:', error);
       toast.error('Error al subir la imagen');
@@ -226,7 +228,6 @@ const CrearNoticia = () => {
                   Título *
                 </label>
                 <input
-                  type="text"
                   id="titulo"
                   name="titulo"
                   value={formData.titulo}

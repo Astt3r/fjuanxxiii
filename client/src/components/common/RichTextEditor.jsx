@@ -32,104 +32,20 @@ const RichTextEditor = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#000000');
 
-  // Función para interceptar y corregir la inserción de texto
-  const handleBeforeInput = (e) => {
-    // Forzar LTR antes de cualquier inserción
-    forceLTRDirection();
-    
-    // Interceptar la inserción de texto
-    if (e.inputType === 'insertText' || e.inputType === 'insertCompositionText') {
-      e.preventDefault();
-      
-      const selection = window.getSelection();
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        range.deleteContents();
-        
-        // Crear un nodo de texto con la dirección forzada
-        const textNode = document.createTextNode(e.data || '');
-        range.insertNode(textNode);
-        
-        // Mover el cursor después del texto insertado
-        range.setStartAfter(textNode);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        
-        // Forzar LTR después de la inserción
-        setTimeout(() => {
-          forceLTRDirection();
-          handleContentChange();
-        }, 0);
-        
-        return false;
-      }
+  // Función simple para manejar cambios de contenido
+  const handleContentChange = () => {
+    if (editorRef.current && onChange) {
+      const content = editorRef.current.innerHTML;
+      onChange(content);
     }
   };
-
-  // Función para forzar LTR con máxima agresividad
-  const forceLTRDirection = () => {
-    if (editorRef.current) {
-      const editor = editorRef.current;
-      
-      // Fuerza los estilos en el elemento principal
-      editor.style.direction = 'ltr';
-      editor.style.textAlign = 'left';
-      editor.style.unicodeBidi = 'normal';
-      editor.style.writingMode = 'lr-tb';
-      editor.setAttribute('dir', 'ltr');
-      
-      // Fuerza los estilos en todos los elementos hijos
-      const allElements = editor.querySelectorAll('*');
-      allElements.forEach(element => {
-        element.style.direction = 'ltr';
-        element.style.textAlign = 'left';
-        element.style.unicodeBidi = 'normal';
-        element.style.writingMode = 'lr-tb';
-        element.setAttribute('dir', 'ltr');
-      });
-      
-      // Si hay selección, fuerza la posición del cursor
-      const selection = window.getSelection();
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const parentElement = range.commonAncestorContainer.parentElement || range.commonAncestorContainer;
-        if (editor.contains(parentElement)) {
-          if (parentElement.style) {
-            parentElement.style.direction = 'ltr';
-            parentElement.style.textAlign = 'left';
-            parentElement.style.unicodeBidi = 'normal';
-            parentElement.style.writingMode = 'lr-tb';
-          }
-        }
-      }
-    }
-  };
-
-  // useEffect para forzar LTR cuando cambia el valor o se monta el componente
-  React.useEffect(() => {
-    forceLTRDirection();
-  }, [value]);
 
   // useEffect para configurar el editor cuando se monta
   React.useEffect(() => {
-    if (editorRef.current) {
-      forceLTRDirection();
-      
-      // Observer para detectar cambios en el DOM y forzar LTR
-      const observer = new MutationObserver(() => {
-        forceLTRDirection();
-      });
-      
-      observer.observe(editorRef.current, {
-        childList: true,
-        subtree: true,
-        characterData: true
-      });
-      
-      return () => observer.disconnect();
+    if (editorRef.current && value !== editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = value || '';
     }
-  }, []);
+  }, [value]);
 
   // Herramientas del editor
   const formatTools = [
@@ -240,21 +156,45 @@ const RichTextEditor = ({
     const file = event.target.files[0];
     if (file) {
       try {
-        // Crear URL temporal para la imagen
-        const imageUrl = URL.createObjectURL(file);
-        
-        // Insertar imagen en el editor
-        const imgHTML = `<img src="${imageUrl}" alt="${file.name}" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px;" />`;
-        document.execCommand('insertHTML', false, imgHTML);
-        
-        // Callback para manejar la carga en el componente padre
-        if (onImageUpload) {
-          onImageUpload(file, imageUrl);
+        // Crear FormData para enviar el archivo
+        const formData = new FormData();
+        formData.append('image', file);
+
+        // Subir imagen al servidor
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5003/api'}/upload/image`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Usar la URL real del servidor
+          const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5003/api';
+          const serverBaseURL = baseURL.replace('/api', '');
+          const imageUrl = `${serverBaseURL}${result.data.url}`;
+          
+          // Insertar imagen en el editor
+          const imgHTML = `<img src="${imageUrl}" alt="${file.name}" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; display: block;" />`;
+          document.execCommand('insertHTML', false, imgHTML);
+          
+          // Callback para manejar la carga en el componente padre
+          if (onImageUpload) {
+            onImageUpload(file, imageUrl);
+          }
+          
+          handleContentChange();
+        } else {
+          console.error('Error al subir imagen:', result.message);
+          alert('Error al subir la imagen: ' + result.message);
         }
         
-        handleContentChange();
       } catch (error) {
         console.error('Error al cargar imagen:', error);
+        alert('Error al cargar la imagen. Por favor intenta de nuevo.');
       }
     }
     
@@ -262,33 +202,8 @@ const RichTextEditor = ({
     event.target.value = '';
   };
 
-  // Manejar cambios de contenido
-  const handleContentChange = () => {
-    if (editorRef.current && onChange) {
-      // Forzar dirección LTR después de cada cambio
-      setTimeout(() => {
-        if (editorRef.current) {
-          editorRef.current.style.direction = 'ltr';
-          editorRef.current.style.textAlign = 'left';
-          editorRef.current.style.unicodeBidi = 'normal';
-        }
-      }, 0);
-      
-      onChange(editorRef.current.innerHTML);
-    }
-  };
-
   // Atajos de teclado
   const handleKeyDown = (e) => {
-    // Forzar LTR en cada tecla presionada
-    setTimeout(() => {
-      if (editorRef.current) {
-        editorRef.current.style.direction = 'ltr';
-        editorRef.current.style.textAlign = 'left';
-        editorRef.current.style.unicodeBidi = 'normal';
-      }
-    }, 0);
-
     if (e.ctrlKey || e.metaKey) {
       switch (e.key) {
         case 'b':
@@ -407,33 +322,22 @@ const RichTextEditor = ({
       <div
         ref={editorRef}
         contentEditable
+        suppressContentEditableWarning={true}
         className={`w-full p-4 border border-gray-300 outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent prose prose-lg max-w-none ${
           showToolbar ? 'rounded-b-lg' : 'rounded-lg'
         } ${isEditorFocused ? 'ring-2 ring-primary-500' : ''}`}
         style={{ 
           minHeight,
-          direction: 'ltr !important',
-          textAlign: 'left !important',
-          unicodeBidi: 'normal !important',
-          writingMode: 'lr-tb !important'
+          direction: 'ltr',
+          textAlign: 'left',
+          unicodeBidi: 'embed'
         }}
-        onFocus={() => {
-          setIsEditorFocused(true);
-          forceLTRDirection();
-        }}
-        onBlur={() => {
-          setIsEditorFocused(false);
-          forceLTRDirection();
-        }}
+        dir="ltr"
+        onFocus={() => setIsEditorFocused(true)}
+        onBlur={() => setIsEditorFocused(false)}
         onInput={handleContentChange}
         onKeyDown={handleKeyDown}
-        onBeforeInput={handleBeforeInput}
-        onPaste={() => {
-          setTimeout(() => forceLTRDirection(), 10);
-        }}
-        dangerouslySetInnerHTML={{ __html: value }}
         data-placeholder={placeholder}
-        dir="ltr"
       />
 
       {/* Diálogo de enlace */}
@@ -516,5 +420,33 @@ const RichTextEditor = ({
     </div>
   );
 };
+
+// Estilos CSS para forzar comportamiento LTR
+const editorStyles = `
+  [contenteditable] {
+    direction: ltr !important;
+    text-align: left !important;
+    unicode-bidi: embed !important;
+  }
+  
+  [contenteditable] * {
+    direction: ltr !important;
+    text-align: left !important;
+    unicode-bidi: embed !important;
+  }
+  
+  [contenteditable]:focus {
+    direction: ltr !important;
+    text-align: left !important;
+  }
+`;
+
+// Inyectar estilos si no existen
+if (typeof document !== 'undefined' && !document.getElementById('rich-text-editor-styles')) {
+  const style = document.createElement('style');
+  style.id = 'rich-text-editor-styles';
+  style.textContent = editorStyles;
+  document.head.appendChild(style);
+}
 
 export default RichTextEditor;

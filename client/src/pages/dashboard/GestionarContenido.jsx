@@ -32,9 +32,7 @@ const eventosEjemplo = [
     tipoEvento: 'reunion',
     categoria: 'padres',
     estado: 'activo',
-    color: '#F59E0B',
-    capacidadMaxima: 50,
-    inscritos: 32
+    color: '#F59E0B'
   },
   {
     id: 2,
@@ -46,9 +44,7 @@ const eventosEjemplo = [
     tipoEvento: 'deportivo',
     categoria: 'deportes',
     estado: 'activo',
-    color: '#10B981',
-    capacidadMaxima: 200,
-    inscritos: 45
+    color: '#10B981'
   },
   {
     id: 3,
@@ -60,9 +56,7 @@ const eventosEjemplo = [
     tipoEvento: 'religioso',
     categoria: 'pastoral',
     estado: 'activo',
-    color: '#DC2626',
-    capacidadMaxima: 300,
-    inscritos: 180
+    color: '#DC2626'
   }
 ];
 
@@ -147,7 +141,11 @@ const GestionarContenido = () => {
       setLoading(true);
       const response = await fetch(API_CONFIG.getEventsURL());
       if (response.ok) {
-        const eventosData = await response.json();
+        const data = await response.json();
+        
+        // Asegurar que siempre trabajamos con un array
+        const eventosData = Array.isArray(data) ? data : [];
+        
         // Transformar los eventos para el formato esperado por el componente
         const eventosFormateados = eventosData.map(evento => ({
           id: evento.id,
@@ -159,9 +157,7 @@ const GestionarContenido = () => {
           tipoEvento: evento.tipo,
           categoria: evento.tipo,
           estado: evento.estado,
-          color: evento.color,
-          capacidadMaxima: 100, // Valor por defecto hasta que esté en BD
-          inscritos: Math.floor(Math.random() * 50) // Valor simulado
+          color: evento.color
         }));
         setEventos(eventosFormateados);
         refreshStats(); // Actualizar estadísticas
@@ -364,26 +360,20 @@ const GestionarContenido = () => {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               {/* Create Buttons */}
               <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => toast('Funcionalidad de crear noticias estará disponible próximamente.', {
-                    icon: 'ℹ️',
-                    duration: 3000,
-                  })}
+                <Link
+                  to="/dashboard/contenido/crear"
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
                   <PlusIcon className="h-4 w-4 mr-2" />
                   Nueva Noticia
-                </button>
-                <button
-                  onClick={() => toast('Funcionalidad de crear eventos estará disponible próximamente.', {
-                    icon: 'ℹ️',
-                    duration: 3000,
-                  })}
+                </Link>
+                <Link
+                  to="/dashboard/eventos/crear"
                   className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
                 >
                   <CalendarIcon className="h-4 w-4 mr-2" />
                   Nuevo Evento
-                </button>
+                </Link>
               </div>
 
               {/* Search and Filter */}
@@ -464,56 +454,57 @@ const GestionarContenido = () => {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200 table-fixed">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {/* Ajustes de ancho: título puede envolver y autor más compacto */}
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
                           Título
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                           Autor
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
                           Fecha
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                           Estado
                         </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                           Acciones
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {filteredNoticias.map((noticia) => (
-                        <tr key={noticia.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
+                        <tr key={noticia.id} className="hover:bg-gray-50 align-top">
+                          <td className="px-4 py-4 whitespace-normal break-words">
+                            <div className="flex items-start">
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-gray-900 line-clamp-2 break-words">
                                   {noticia.titulo}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-xs text-gray-500 mt-1">
                                   {noticia.categoria}
                                 </div>
                               </div>
                               {noticia.destacado && (
-                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 shrink-0">
                                   Destacado
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {noticia.autor}
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span className="block truncate max-w-[7rem]" title={noticia.autor}>{noticia.autor}</span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                             {formatDate(noticia.fecha_publicacion || noticia.created_at)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 py-4 whitespace-nowrap">
                             {getStatusBadge(noticia.estado)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end space-x-2">
                               <button
                                 onClick={() => handleView(noticia, 'noticia')}
@@ -596,12 +587,6 @@ const GestionarContenido = () => {
                           <div className="flex items-center text-sm text-gray-500">
                             <MapPinIcon className="h-4 w-4 mr-2" />
                             {evento.ubicacion}
-                          </div>
-                        )}
-                        {evento.capacidadMaxima && (
-                          <div className="flex items-center text-sm text-gray-500">
-                            <UserGroupIcon className="h-4 w-4 mr-2" />
-                            {evento.inscritos || 0} / {evento.capacidadMaxima} inscritos
                           </div>
                         )}
                       </div>

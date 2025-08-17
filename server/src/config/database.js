@@ -207,6 +207,44 @@ const createTables = async () => {
       )
     `);
 
+    // Tabla intermedia para múltiples imágenes por noticia
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS noticias_imagenes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        noticia_id INT NOT NULL,
+        filename VARCHAR(255) NOT NULL,
+        original_name VARCHAR(255),
+        url VARCHAR(500) NOT NULL,
+        tamaño INT,
+        tipo_mime VARCHAR(100),
+        orden INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (noticia_id) REFERENCES noticias(id) ON DELETE CASCADE,
+        INDEX idx_noticia (noticia_id)
+      )
+    `);
+
+    // Backfill: asignar imagen destacada a noticias que aún no tienen (primera imagen por orden)
+    try {
+      const [result] = await pool.execute(`
+        UPDATE noticias n
+        SET imagen = (
+          SELECT url FROM noticias_imagenes ni
+          WHERE ni.noticia_id = n.id
+          ORDER BY ni.orden, ni.id
+          LIMIT 1
+        )
+        WHERE n.imagen IS NULL AND EXISTS (
+          SELECT 1 FROM noticias_imagenes ni2 WHERE ni2.noticia_id = n.id
+        )
+      `);
+      if (result && result.affectedRows) {
+        console.log(`🔄 Backfill imágenes noticias: ${result.affectedRows} filas actualizadas`);
+      }
+    } catch (e) {
+      console.warn('⚠️  Error en backfill de imágenes (no crítico):', e.message);
+    }
+
     console.log('✅ Tablas de base de datos verificadas/creadas');
   } catch (error) {
     console.error('❌ Error creando tablas:', error.message);

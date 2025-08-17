@@ -299,25 +299,32 @@ const CrearNoticiaAvanzada = () => {
 
     setLoading(true);
     try {
+      // Preparar datos solo con los campos que la API espera
       const dataToSend = {
-        ...formData,
+        titulo: formData.titulo.trim(),
+        slug: formData.seo?.slug || formData.titulo.toLowerCase()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-'),
+        resumen: formData.resumen?.trim() || null,
+        contenido: formData.contenido.trim(),
+        categoria: formData.categoria || null,
         estado,
-        autor: formData.autorPersonalizado || user.nombre,
-        fechaCreacion: isEditing ? formData.fechaCreacion : new Date().toISOString(),
-        fechaActualizacion: new Date().toISOString()
+        destacado: formData.destacado || false,
+        fecha_publicacion: estado === 'publicado' ? new Date().toISOString() : null
       };
 
       if (isEditing) {
-        await noticiasApi.updateNoticia(id, dataToSend);
+        await noticiasApi.update(id, dataToSend);
         toast.success('Noticia actualizada exitosamente');
       } else {
-        await noticiasApi.createNoticia(dataToSend);
+        await noticiasApi.create(dataToSend);
         toast.success('Noticia creada exitosamente');
       }
 
       navigate('/dashboard/contenido');
     } catch (error) {
-      toast.error('Error al guardar la noticia');
+      console.error('Error detallado:', error);
+      toast.error('Error al guardar la noticia: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -391,7 +398,7 @@ const CrearNoticiaAvanzada = () => {
       </div>
 
       {/* Contenido principal */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Panel principal de edición */}
           <div className="lg:col-span-3 space-y-6">
@@ -745,6 +752,74 @@ const CrearNoticiaAvanzada = () => {
           </div>
         </div>
       </div>
+
+      {/* Barra de botones de acción fija */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-500">
+                {isEditing ? 'Editando noticia' : 'Crear nueva noticia'}
+              </span>
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <span>Estado:</span>
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                  formData.estado === 'publicado' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {formData.estado === 'publicado' ? 'Publicado' : 'Borrador'}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              {/* Vista previa */}
+              <button
+                onClick={() => setPreviewMode(!previewMode)}
+                className={`flex items-center space-x-2 px-4 py-2 text-sm border rounded-md transition-colors ${
+                  previewMode 
+                    ? 'bg-primary-50 border-primary-300 text-primary-700' 
+                    : 'border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <EyeIcon className="h-4 w-4" />
+                <span>Vista previa</span>
+              </button>
+
+              {/* Guardar borrador */}
+              <button
+                onClick={() => handleSubmit('borrador')}
+                disabled={loading}
+                className="px-6 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading && formData.estado === 'borrador' ? 'Guardando...' : 'Guardar borrador'}
+              </button>
+              
+              {/* Publicar */}
+              <button
+                onClick={() => handleSubmit('publicado')}
+                disabled={loading}
+                className="px-6 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                {loading && formData.estado === 'publicado' ? 'Publicando...' : 'Publicar'}
+              </button>
+
+              {/* Cancelar */}
+              <button
+                onClick={() => navigate('/dashboard/contenido')}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Modal de biblioteca de medios */}
       {showMediaLibrary && (

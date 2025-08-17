@@ -10,7 +10,7 @@ import sanGabrielLogo from './logos/san-gabriel.png';
 import trapaTrapaLogo from './logos/trapa trapa butalbelbun.png';
 
 // Importar imágenes de la fundación
-import fundacionExteriorImg from './images/Fundación por fuera.png';
+import fundacionExteriorImg from './images/fundacion-exterior.png';
 import logoFundacion from './images/logo.png';
 
 // Mapeo de logos por slug de colegio

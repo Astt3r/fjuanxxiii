@@ -85,8 +85,8 @@ app.use('/api/schools', colegiosRoutes); // Alias para compatibilidad
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/events', eventsRoutes);
-app.use('/api/protocols', protocolsRoutes);
-app.use('/api/staff', staffRoutes);
+// app.use('/api/protocols', protocolsRoutes);
+// app.use('/api/staff', staffRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

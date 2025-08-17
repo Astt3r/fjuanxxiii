@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
   CalendarIcon,
@@ -9,11 +10,12 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 
-const EditarEvento = () => {
+const CrearEvento = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [formData, setFormData] = useState({
     titulo: '',
@@ -23,8 +25,7 @@ const EditarEvento = () => {
     hora_fin: '',
     ubicacion: '',
     tipo: 'evento',
-    color: '#3B82F6',
-    estado: 'activo'
+    color: '#3B82F6'
   });
 
   const tiposEvento = [
@@ -34,47 +35,47 @@ const EditarEvento = () => {
     { value: 'academico', label: 'Académico', color: '#EF4444' }
   ];
 
-  // Cargar datos del evento
+  // Cargar evento si es edición
   useEffect(() => {
-    const loadEvento = async () => {
-      try {
-        setLoadingData(true);
-        const response = await fetch(`http://localhost:5002/api/events/${id}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (response.ok) {
-          const evento = await response.json();
-          setFormData({
-            titulo: evento.titulo || '',
-            descripcion: evento.descripcion || '',
-            fecha_evento: evento.fecha_evento ? new Date(evento.fecha_evento).toISOString().split('T')[0] : '',
-            hora_inicio: evento.hora_inicio || '',
-            hora_fin: evento.hora_fin || '',
-            ubicacion: evento.ubicacion || '',
-            tipo: evento.tipo || 'evento',
-            color: evento.color || '#3B82F6',
-            estado: evento.estado || 'activo'
-          });
-        } else {
-          toast.error('Error al cargar el evento');
-          navigate('/dashboard/contenido');
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        toast.error('Error al cargar el evento');
-        navigate('/dashboard/contenido');
-      } finally {
-        setLoadingData(false);
-      }
-    };
-
     if (id) {
+      setIsEditing(true);
       loadEvento();
     }
-  }, [id, navigate]);
+  }, [id]);
+
+  const loadEvento = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`http://localhost:5002/api/events/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const evento = await response.json();
+        setFormData({
+          titulo: evento.titulo || '',
+          descripcion: evento.descripcion || '',
+          fecha_evento: evento.fecha_evento ? new Date(evento.fecha_evento).toISOString().split('T')[0] : '',
+          hora_inicio: evento.hora_inicio || '',
+          hora_fin: evento.hora_fin || '',
+          ubicacion: evento.ubicacion || '',
+          tipo: evento.tipo || 'evento',
+          color: evento.color || '#3B82F6'
+        });
+      } else {
+        toast.error('Error al cargar el evento');
+        navigate('/dashboard/contenido');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al cargar el evento');
+      navigate('/dashboard/contenido');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -104,6 +105,18 @@ const EditarEvento = () => {
       return false;
     }
 
+    // Validar que la fecha no sea en el pasado (solo para eventos nuevos)
+    if (!isEditing) {
+      const fechaEvento = new Date(formData.fecha_evento);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      
+      if (fechaEvento < hoy) {
+        toast.error('La fecha del evento no puede ser en el pasado');
+        return false;
+      }
+    }
+
     // Validar horarios si ambos están presentes
     if (formData.hora_inicio && formData.hora_fin) {
       if (formData.hora_fin <= formData.hora_inicio) {
@@ -123,8 +136,14 @@ const EditarEvento = () => {
     setLoading(true);
     
     try {
-      const response = await fetch(`http://localhost:5002/api/events/${id}`, {
-        method: 'PUT',
+      const url = isEditing 
+        ? `http://localhost:5002/api/events/${id}`
+        : 'http://localhost:5002/api/events';
+      
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -133,51 +152,21 @@ const EditarEvento = () => {
       });
 
       if (response.ok) {
-        toast.success('Evento actualizado exitosamente');
+        toast.success(isEditing ? 'Evento actualizado exitosamente' : 'Evento creado exitosamente');
         navigate('/dashboard/contenido');
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Error al actualizar el evento');
+        toast.error(error.error || 'Error al guardar el evento');
       }
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Error de conexión al actualizar el evento');
+      toast.error('Error de conexión al guardar el evento');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEliminar = async () => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este evento?')) {
-      return;
-    }
-
-    setLoading(true);
-    
-    try {
-      const response = await fetch(`http://localhost:5002/api/events/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (response.ok) {
-        toast.success('Evento eliminado exitosamente');
-        navigate('/dashboard/contenido');
-      } else {
-        const error = await response.json();
-        toast.error(error.error || 'Error al eliminar el evento');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error de conexión al eliminar el evento');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loadingData) {
+  if (loading && isEditing) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
         <div className="text-center">
@@ -207,20 +196,12 @@ const EditarEvento = () => {
                 Volver al Dashboard
               </button>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Editar Evento
+                {isEditing ? 'Editar Evento' : 'Crear Nuevo Evento'}
               </h1>
               <p className="text-gray-600">
-                Modifica la información del evento
+                {isEditing ? 'Modifica la información del evento' : 'Agrega un nuevo evento al calendario'}
               </p>
             </div>
-            
-            <button
-              onClick={handleEliminar}
-              disabled={loading}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Eliminar Evento
-            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -293,22 +274,6 @@ const EditarEvento = () => {
                     />
                     <span className="text-sm text-gray-600">{formData.color}</span>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estado *
-                  </label>
-                  <select
-                    name="estado"
-                    value={formData.estado}
-                    onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="activo">Activo</option>
-                    <option value="cancelado">Cancelado</option>
-                    <option value="pospuesto">Pospuesto</option>
-                  </select>
                 </div>
               </div>
             </div>
@@ -405,7 +370,7 @@ const EditarEvento = () => {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 )}
-                {loading ? 'Actualizando...' : 'Actualizar Evento'}
+                {loading ? 'Guardando...' : (isEditing ? 'Actualizar Evento' : 'Crear Evento')}
               </button>
             </div>
           </form>
@@ -415,4 +380,4 @@ const EditarEvento = () => {
   );
 };
 
-export default EditarEvento;
+export default CrearEvento;

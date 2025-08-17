@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configuración base de axios
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5002/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5003/api';
 
 // Crear instancia de axios
 const api = axios.create({
@@ -186,6 +186,8 @@ export const endpoints = {
     list: '/noticias',
     create: '/noticias',
     detail: (id) => `/noticias/${id}`,
+  detailBySlug: (slug) => `/noticias/slug/${slug}`,
+  public: (id) => `/noticias/public/${id}`,
     detailAuth: (id) => `/noticias/detalle/${id}`,
     update: (id) => `/noticias/${id}`,
     delete: (id) => `/noticias/${id}`,

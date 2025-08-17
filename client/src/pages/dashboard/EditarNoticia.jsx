@@ -82,42 +82,47 @@ const EditarNoticia = () => {
   const loadNoticia = async () => {
     try {
       setLoadingData(true);
-      const response = await fetch(`http://localhost:5002/api/noticias/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      // Intentar primero endpoint autenticado; si falla por 404 usar público
+      let noticia = null;
+      try {
+        noticia = await noticiasApi.getByIdAuth(id);
+      } catch (errAuth) {
+        if (errAuth.status === 404) {
+          try {
+            noticia = await noticiasApi.getById(id);
+          } catch (errPublic) {
+            throw errPublic;
+          }
+        } else {
+          throw errAuth;
+        }
+      }
+
+      if (!noticia) throw new Error('No se pudo obtener la noticia');
+
+      setFormData({
+        titulo: noticia.titulo || '',
+        slug: noticia.slug || '',
+        resumen: noticia.resumen || '',
+        contenido: noticia.contenido || '',
+        categoria: noticia.categoria || 'general',
+        estado: noticia.estado || 'borrador',
+        destacado: Boolean(noticia.destacado),
+        imagenDestacada: noticia.imagen_url || '',
+        fechaPublicacion: noticia.fecha_publicacion ? new Date(noticia.fecha_publicacion).toISOString().split('T')[0] : '',
+        metaDescripcion: noticia.meta_descripcion || '',
+        metaKeywords: noticia.meta_keywords || '',
+        tags: noticia.tags ? (typeof noticia.tags === 'string' ? noticia.tags.split(',') : noticia.tags) : [],
+        configuracion: {
+          permitirComentarios: true,
+          mostrarAutor: true,
+          indexarBuscadores: true,
+          enviarNotificaciones: false
         }
       });
-      
-      if (response.ok) {
-        const noticia = await response.json();
-        
-        // Mapear los datos de la API al formato del formulario
-        setFormData({
-          titulo: noticia.titulo || '',
-          slug: noticia.slug || '',
-          resumen: noticia.resumen || '',
-          contenido: noticia.contenido || '',
-          categoria: noticia.categoria || 'general',
-          estado: noticia.estado || 'borrador',
-          destacado: Boolean(noticia.destacado),
-          imagenDestacada: noticia.imagen_url || '',
-          fechaPublicacion: noticia.fecha_publicacion ? new Date(noticia.fecha_publicacion).toISOString().split('T')[0] : '',
-          metaDescripcion: noticia.meta_descripcion || '',
-          metaKeywords: noticia.meta_keywords || '',
-          tags: noticia.tags ? (typeof noticia.tags === 'string' ? noticia.tags.split(',') : noticia.tags) : [],
-          configuracion: {
-            permitirComentarios: true,
-            mostrarAutor: true,
-            indexarBuscadores: true,
-            enviarNotificaciones: false
-          }
-        });
-      } else {
-        throw new Error('No se pudo cargar la noticia');
-      }
     } catch (error) {
       console.error('Error al cargar la noticia:', error);
-      toast.error('Error al cargar la noticia');
+      toast.error(error.message || 'Error al cargar la noticia');
       navigate('/dashboard/contenido');
     } finally {
       setLoadingData(false);
@@ -147,15 +152,7 @@ const EditarNoticia = () => {
     }));
   };
 
-  const handleConfiguracionChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      configuracion: {
-        ...prev.configuracion,
-        [field]: value
-      }
-    }));
-  };
+  // (configuracion avanzada removida; si se requiere reactivar, restaurar handleConfiguracionChange)
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -183,22 +180,9 @@ const EditarNoticia = () => {
         tags: Array.isArray(formData.tags) ? formData.tags.join(',') : formData.tags
       };
 
-      const response = await fetch(`http://localhost:5002/api/noticias/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(dataToSend)
-      });
-
-      if (response.ok) {
-        toast.success('Noticia actualizada correctamente');
-        navigate('/dashboard/contenido');
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al actualizar la noticia');
-      }
+  await noticiasApi.update(id, dataToSend);
+  toast.success('Noticia actualizada correctamente');
+  navigate('/dashboard/contenido');
     } catch (error) {
       console.error('Error:', error);
       toast.error(error.message || 'Error al actualizar la noticia');

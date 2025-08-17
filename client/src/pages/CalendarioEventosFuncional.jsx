@@ -11,7 +11,7 @@ import {
   TagIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
-import API_CONFIG from '../config/api';
+import { API_CONFIG } from '../config/api';
 import toast from 'react-hot-toast';
 
 const CalendarioEventos = () => {
@@ -58,46 +58,31 @@ const CalendarioEventos = () => {
   const cargarEventos = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Intentando cargar eventos desde:', API_CONFIG.getEventsURL());
-      
       const response = await fetch(API_CONFIG.getEventsURL());
-      console.log('📡 Respuesta de la API:', response.status, response.statusText);
-      
       if (response.ok) {
         const eventosData = await response.json();
-        console.log('📊 Datos recibidos:', eventosData);
         
-        // Verificar que eventosData sea un array antes de usar map
-        if (Array.isArray(eventosData)) {
-          // Transformar los eventos para el formato del calendario
-          const eventosFormateados = eventosData.map(evento => ({
-            id: evento.id,
-            title: evento.titulo,
-            date: evento.fecha_evento.split('T')[0], // Formato YYYY-MM-DD
-            time: evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '00:00', // Formato HH:MM
-            endTime: evento.hora_fin ? evento.hora_fin.substring(0, 5) : null,
-            location: evento.ubicacion || 'Sin ubicación',
-            description: evento.descripcion || 'Sin descripción',
-            type: evento.tipo || 'evento',
-            color: evento.color || '#F59E0B',
-            estado: evento.estado
-          }));
-          
-          console.log('✅ Eventos formateados:', eventosFormateados);
-          setEvents(eventosFormateados);
-          toast.success(`${eventosFormateados.length} eventos cargados correctamente`);
-        } else {
-          console.warn('⚠️ La respuesta de la API no es un array:', eventosData);
-          setEvents([]);
-          toast.error('Los datos de eventos no tienen el formato esperado');
-        }
+        // Transformar los eventos para el formato del calendario
+        const eventosFormateados = eventosData.map(evento => ({
+          id: evento.id,
+          title: evento.titulo,
+          date: evento.fecha_evento.split('T')[0], // Formato YYYY-MM-DD
+          time: evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '00:00', // Formato HH:MM
+          endTime: evento.hora_fin ? evento.hora_fin.substring(0, 5) : null,
+          location: evento.ubicacion || 'Sin ubicación',
+          description: evento.descripcion || 'Sin descripción',
+          type: evento.tipo || 'evento',
+          color: evento.color || '#F59E0B',
+          estado: evento.estado
+        }));
+        
+        setEvents(eventosFormateados);
       } else {
-        console.error('❌ Error en la respuesta:', response.status, response.statusText);
-        toast.error(`Error al cargar eventos: ${response.status}`);
+        toast.error('Error al cargar eventos');
       }
     } catch (error) {
-      console.error('❌ Error cargando eventos:', error);
-      toast.error('Error de conexión al cargar eventos. Verifique que el servidor esté ejecutándose.');
+      console.error('Error cargando eventos:', error);
+      toast.error('Error de conexión al cargar eventos');
     } finally {
       setLoading(false);
     }

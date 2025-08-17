@@ -10,6 +10,7 @@ import {
   ShareIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import API_CONFIG from '../config/api';
 
 const NoticiaDetalle = () => {
   const { id } = useParams();
@@ -27,20 +28,27 @@ const NoticiaDetalle = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await fetch(`http://localhost:5002/api/noticias/${id}`);
-      
-      if (response.ok) {
-        const result = await response.json();
-        
-        // La API devuelve {success: true, data: {...}}
-        const noticia = result.data || result;
-        setNoticia(noticia);
+
+      // Intentar primero por slug
+      let resp = await fetch(`${API_CONFIG.baseURL}/noticias/slug/${id}`);
+      if (!resp.ok) {
+        // Intentar como id publicada
+        resp = await fetch(`${API_CONFIG.baseURL}/noticias/${id}`);
+      }
+      if (!resp.ok) {
+        // Intentar ruta pública por id explícita
+        resp = await fetch(`${API_CONFIG.baseURL}/noticias/public/${id}`);
+      }
+
+      if (resp.ok) {
+        const result = await resp.json();
+        const data = result.data || result;
+        setNoticia(data);
       } else {
         throw new Error('No se pudo cargar la noticia');
       }
-    } catch (error) {
-      console.error('Error al cargar noticia:', error);
+    } catch (e) {
+      console.error('Error al cargar noticia:', e);
       setError('No se pudo cargar la noticia');
       toast.error('Error al cargar la noticia');
     } finally {
@@ -174,10 +182,11 @@ const NoticiaDetalle = () => {
             className="bg-white rounded-2xl shadow-lg overflow-hidden"
           >
             {/* Imagen destacada */}
-            {noticia.imagen_url && (
+            {/* Imagen principal (si hay varias, tomar la primera) */}
+            { (noticia.imagen_url || (Array.isArray(noticia.imagenes) && noticia.imagenes[0])) && (
               <div className="h-64 md:h-96 overflow-hidden bg-gray-100">
                 <img 
-                  src={noticia.imagen_url} 
+                  src={noticia.imagen_url || noticia.imagenes[0].url} 
                   alt={noticia.titulo}
                   className="w-full h-full object-cover"
                   onError={(e) => {
@@ -238,6 +247,17 @@ const NoticiaDetalle = () => {
                 <div className="flex items-center mb-6 text-gray-600">
                   <UserIcon className="h-5 w-5 mr-2" />
                   <span>Por {noticia.autor}</span>
+                </div>
+              )}
+
+              {/* Galería secundaria si hay más de una imagen */}
+              {Array.isArray(noticia.imagenes) && noticia.imagenes.length > 1 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                  {noticia.imagenes.slice(1).map(img => (
+                    <div key={img.id} className="relative group rounded-lg overflow-hidden border">
+                      <img src={img.url} alt={noticia.titulo} className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
+                    </div>
+                  ))}
                 </div>
               )}
 

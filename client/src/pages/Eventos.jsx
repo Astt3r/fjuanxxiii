@@ -18,9 +18,12 @@ const Eventos = () => {
       
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/events?mes=${mes}&año=${año}`);
       const data = await response.json();
-      setEventos(data);
+      
+      // Asegurar que siempre trabajamos con un array
+      setEventos(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error cargando eventos:', error);
+      setEventos([]); // Establecer array vacío en caso de error
     } finally {
       setLoading(false);
     }
@@ -52,7 +55,9 @@ const Eventos = () => {
   };
 
   const obtenerEventosDelDia = (fecha) => {
-    return eventos.filter(evento => {
+    // Asegurar que eventos es un array antes de usar filter
+    const eventosArray = Array.isArray(eventos) ? eventos : [];
+    return eventosArray.filter(evento => {
       const fechaEvento = new Date(evento.fecha_evento);
       return fechaEvento.toDateString() === fecha.toDateString();
     });

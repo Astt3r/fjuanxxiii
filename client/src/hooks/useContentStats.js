@@ -59,7 +59,10 @@ export const useContentStats = () => {
     try {
       const response = await fetch(API_CONFIG.getEventsURL());
       if (response.ok) {
-        const eventos = await response.json();
+        const data = await response.json();
+        
+        // Asegurar que siempre trabajamos con un array
+        const eventos = Array.isArray(data) ? data : [];
         
         const ahora = new Date();
         const proximos = eventos.filter(evento => {

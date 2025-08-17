@@ -58,56 +58,123 @@ const Home = () => {
       transition={{ duration: 0.5 }}
       className="min-h-screen"
     >
-      {/* Hero Section Mejorado */}
+      {/* Hero Section Animado */}
       <section className="relative min-h-screen flex items-center overflow-hidden">
-        {/* Imagen de fondo */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
+        {/* Fondo inicial con color */}
+        <motion.div 
+          className="absolute inset-0 bg-gradient-to-br from-primary-900 via-primary-800 to-primary-600"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ delay: 1, duration: 1.5 }}
+        ></motion.div>
+        
+        {/* Imagen de fondo que aparece después */}
+        <motion.div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ 
             backgroundImage: `url(${fundacionImages.exterior})`,
-            backgroundPosition: 'center center',
-            filter: 'brightness(0.4) contrast(1.1)'
+            backgroundPosition: 'center center'
           }}
-        ></div>
+          initial={{ opacity: 0, scale: 1.1 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 1, duration: 1.5 }}
+        ></motion.div>
         
-        {/* Overlay católico elegante */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-900/95 via-primary-800/90 to-primary-600/85"></div>
+        {/* Overlay para legibilidad */}
+        <motion.div 
+          className="absolute inset-0 bg-gradient-to-r from-primary-900/80 via-primary-800/70 to-transparent"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2, duration: 1 }}
+        ></motion.div>
         
-        {/* Elementos decorativos católicos */}
-        <div className="absolute top-20 right-20 w-32 h-32 border border-secondary-400/20 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-32 left-16 w-24 h-24 border border-secondary-400/15 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+        {/* Elementos decorativos animados */}
+        <motion.div 
+          className="absolute top-20 right-20 w-32 h-32 border border-secondary-400/20 rounded-full"
+          initial={{ scale: 0, rotate: 0 }}
+          animate={{ scale: 1, rotate: 360 }}
+          transition={{ delay: 2.5, duration: 2, repeat: Infinity, repeatDelay: 3 }}
+        ></motion.div>
+        <motion.div 
+          className="absolute bottom-32 left-16 w-24 h-24 border border-secondary-400/15 rounded-full"
+          initial={{ scale: 0, rotate: 0 }}
+          animate={{ scale: 1, rotate: -360 }}
+          transition={{ delay: 3, duration: 2, repeat: Infinity, repeatDelay: 3 }}
+        ></motion.div>
         
         <div className="relative container mx-auto px-4 py-24">
           <div className="grid lg:grid-cols-12 gap-12 items-center">
             {/* Contenido Principal */}
-            <div className="lg:col-span-8 text-white">
+            <div className="lg:col-span-7 text-white">
               <motion.div
-                initial={{ y: 50, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.8 }}
+                initial={{ x: -100, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 1.5, duration: 1 }}
                 className="max-w-4xl"
               >
                 {/* Subtítulo elegante */}
-                <div className="flex items-center mb-6">
-                  <div className="w-12 h-0.5 bg-secondary-400 mr-4"></div>
-                  <span className="text-secondary-300 font-medium tracking-wider uppercase text-sm">
+                <motion.div 
+                  className="flex items-center mb-6"
+                  initial={{ width: 0 }}
+                  animate={{ width: "auto" }}
+                  transition={{ delay: 2, duration: 1 }}
+                >
+                  <motion.div 
+                    className="h-0.5 bg-secondary-400 mr-4"
+                    initial={{ width: 0 }}
+                    animate={{ width: 48 }}
+                    transition={{ delay: 2, duration: 1 }}
+                  ></motion.div>
+                  <motion.span 
+                    className="text-secondary-300 font-medium tracking-wider uppercase text-sm"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 2.5, duration: 0.5 }}
+                  >
                     Educación Católica de Excelencia
-                  </span>
-                </div>
+                  </motion.span>
+                </motion.div>
                 
-                <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-8 leading-tight">
-                  <span className="block text-white">Fundación</span>
-                  <span className="block bg-gradient-to-r from-secondary-400 via-secondary-300 to-secondary-400 bg-clip-text text-transparent">
+                <motion.h1 
+                  className="text-5xl md:text-7xl lg:text-8xl font-bold mb-8 leading-tight"
+                  initial={{ y: 50, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 2, duration: 1 }}
+                >
+                  <motion.span 
+                    className="block text-white"
+                    initial={{ x: -50 }}
+                    animate={{ x: 0 }}
+                    transition={{ delay: 2.2, duration: 0.8 }}
+                  >
+                    Fundación
+                  </motion.span>
+                  <motion.span 
+                    className="block bg-gradient-to-r from-secondary-400 via-secondary-300 to-secondary-400 bg-clip-text text-transparent"
+                    initial={{ x: 50 }}
+                    animate={{ x: 0 }}
+                    transition={{ delay: 2.4, duration: 0.8 }}
+                  >
                     Juan XXIII
-                  </span>
-                </h1>
+                  </motion.span>
+                </motion.h1>
                 
-                <p className="text-xl md:text-2xl mb-10 leading-relaxed text-gray-100 max-w-3xl">
+                <motion.p 
+                  className="text-xl md:text-2xl mb-10 leading-relaxed text-gray-100 max-w-3xl"
+                  initial={{ y: 30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 2.8, duration: 0.8 }}
+                >
                   Formando líderes cristianos con excelencia académica, valores sólidos y 
                   compromiso social, bajo la inspiración de San Juan XXIII.
-                </p>
+                </motion.p>
                 
-                <div className="flex flex-col sm:flex-row gap-6">
+                <motion.div 
+                  className="flex flex-col sm:flex-row gap-6"
+                  initial={{ y: 30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 3.2, duration: 0.8 }}
+                >
                   <Link 
                     to="/colegios"
                     className="group bg-secondary-500 hover:bg-secondary-600 text-white font-bold py-5 px-10 rounded-full transition-all duration-300 transform hover:scale-105 text-center shadow-2xl hover:shadow-secondary-500/25 relative overflow-hidden"
@@ -121,47 +188,49 @@ const Home = () => {
                   >
                     <span className="group-hover:text-primary-800">Nuestra Historia</span>
                   </Link>
-                </div>
+                </motion.div>
               </motion.div>
             </div>
 
-            {/* Tarjeta de información elegante */}
-            <div className="lg:col-span-4 flex justify-center lg:justify-end">
+            {/* Logo grande en la derecha */}
+            <div className="lg:col-span-5 flex justify-center lg:justify-end">
               <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.6, duration: 0.8 }}
+                initial={{ scale: 0, opacity: 0, rotate: -180 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                transition={{ delay: 2.5, duration: 1.5, type: "spring", stiffness: 100 }}
                 className="relative"
               >
-                <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl relative overflow-hidden">
-                  {/* Efecto de brillo */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
-                  
-                  <div className="relative z-10">
-                    <div className="bg-white rounded-2xl p-6 mb-6 shadow-lg">
-                      <img 
-                        src={fundacionImages.logo} 
-                        alt="Logo Fundación Juan XXIII"
-                        className="h-24 w-24 object-contain mx-auto"
-                      />
-                    </div>
-                    <div className="text-center text-white">
-                      <h3 className="text-2xl font-bold mb-4 text-secondary-300">
-                        Educación Católica
-                      </h3>
-                      <p className="text-gray-100 leading-relaxed mb-6">
-                        Inspirados en el amor pastoral y la sabiduría de San Juan XXIII, 
-                        el Papa Bueno que abrió las puertas de la Iglesia al mundo.
-                      </p>
-                      <div className="bg-secondary-500/20 rounded-xl p-4 border border-secondary-400/30">
-                        <p className="text-secondary-200 font-medium text-sm">
-                          "La caridad del Buen Pastor debe animar siempre a quienes ejercen el ministerio de la palabra"
-                        </p>
-                        <p className="text-secondary-300 text-xs mt-2">- San Juan XXIII</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <motion.div
+                  className="relative"
+                  animate={{ 
+                    y: [0, -10, 0],
+                    rotateY: [0, 5, 0, -5, 0]
+                  }}
+                  transition={{ 
+                    duration: 6, 
+                    repeat: Infinity, 
+                    ease: "easeInOut"
+                  }}
+                >
+                  <img 
+                    src={fundacionImages.logo} 
+                    alt="Logo Fundación Juan XXIII"
+                    className="h-96 w-96 object-contain drop-shadow-2xl filter brightness-110 contrast-110"
+                  />
+                  {/* Efecto de resplandor */}
+                  <motion.div
+                    className="absolute inset-0 bg-secondary-400/20 rounded-full blur-3xl"
+                    animate={{ 
+                      scale: [1, 1.2, 1],
+                      opacity: [0.3, 0.6, 0.3]
+                    }}
+                    transition={{ 
+                      duration: 4, 
+                      repeat: Infinity, 
+                      ease: "easeInOut"
+                    }}
+                  ></motion.div>
+                </motion.div>
               </motion.div>
             </div>
           </div>
@@ -500,7 +569,7 @@ const Home = () => {
                       
                       {/* Enlace */}
                       <Link 
-                        to={`/noticias/${noticia.id}`}
+                        to={`/noticias/${noticia.slug || noticia.id}`}
                         className="inline-flex items-center text-primary-600 hover:text-primary-800 font-semibold transition-colors group-hover:translate-x-1 transition-transform duration-300"
                       >
                         Leer artículo completo 

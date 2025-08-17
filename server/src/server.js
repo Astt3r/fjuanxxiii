@@ -1,4 +1,6 @@
 require('dotenv').config();
+const { validateEnv } = require('./config/validateEnv');
+validateEnv();
 
 console.log('🔄 Iniciando servidor...');
 

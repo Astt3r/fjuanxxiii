@@ -1,39 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { noticiasApi } from '../../services/api';
-import toast from 'react-hot-toast';
+// Eliminados imports de APIs y toast al simplificar el dashboard
 import {
-  PlusIcon,
   DocumentTextIcon,
   CalendarIcon,
   StarIcon
 } from '@heroicons/react/24/outline';
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState({
-    noticias: 0,
-    eventos: 0
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    cargarEstadisticas();
-  }, []);
-
-  const cargarEstadisticas = async () => {
-    try {
-      const response = await noticiasApi.getAll();
-      setStats({
-        noticias: response.noticias?.length || 0,
-        eventos: 0 // Se actualizará cuando esté la API de eventos
-      });
-    } catch (error) {
-      console.error('Error al cargar estadísticas:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Estadísticas y actividad eliminadas según requerimiento.
 
   const dashboardCards = [
     {
@@ -73,31 +49,36 @@ const AdminDashboard = () => {
             </p>
           </div>
 
-          {/* Resumen rápido */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <DocumentTextIcon className="h-8 w-8 text-blue-500" />
-                <div className="ml-4">
-                  <p className="text-2xl font-bold text-gray-900">
-                    {loading ? '...' : stats.noticias}
-                  </p>
-                  <p className="text-gray-600">Noticias Publicadas</p>
+          {/* Sistema de contenido (movido arriba) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="mb-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold mb-2">
+                  Sistema de Contenido Unificado
+                </h3>
+                <p className="text-blue-100 mb-4">
+                  Gestiona noticias y eventos desde un solo lugar.
+                </p>
+                <div className="flex space-x-3">
+                  <Link
+                    to="/dashboard/contenido"
+                    className="inline-flex items-center px-4 py-2 bg-white text-blue-600 rounded-md font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    <DocumentTextIcon className="h-5 w-5 mr-2" />
+                    Ver Contenido
+                  </Link>
                 </div>
               </div>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <CalendarIcon className="h-8 w-8 text-indigo-500" />
-                <div className="ml-4">
-                  <p className="text-2xl font-bold text-gray-900">
-                    {loading ? '...' : stats.eventos}
-                  </p>
-                  <p className="text-gray-600">Eventos Activos</p>
-                </div>
+              <div className="hidden md:block">
+                <DocumentTextIcon className="h-16 w-16 text-blue-200" />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Acciones principales */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -135,79 +116,7 @@ const AdminDashboard = () => {
             ))}
           </div>
 
-          {/* Acceso rápido al sistema de contenido */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold mb-2">
-                  ¡Sistema de Contenido Unificado!
-                </h3>
-                <p className="text-blue-100 mb-4">
-                  Gestiona noticias y eventos desde un solo lugar. El nuevo sistema unifica 
-                  la administración de todo el contenido de la fundación.
-                </p>
-                <div className="flex space-x-3">
-                  <Link
-                    to="/dashboard/contenido"
-                    className="inline-flex items-center px-4 py-2 bg-white text-blue-600 rounded-md font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    <DocumentTextIcon className="h-5 w-5 mr-2" />
-                    Ver Contenido
-                  </Link>
-                  <Link
-                    to="/dashboard/contenido/crear"
-                    className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-md font-medium hover:bg-blue-400 transition-colors"
-                  >
-                    <PlusIcon className="h-5 w-5 mr-2" />
-                    Crear Noticia
-                  </Link>
-                </div>
-              </div>
-              <div className="hidden md:block">
-                <DocumentTextIcon className="h-16 w-16 text-blue-200" />
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Actividad reciente */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-          >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Actividad Reciente
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full"></div>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Juan Pérez</span> publicó una nueva noticia
-                </p>
-                <span className="text-xs text-gray-400">Hace 2 horas</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0 w-2 h-2 bg-blue-500 rounded-full"></div>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">María González</span> actualizó un evento
-                </p>
-                <span className="text-xs text-gray-400">Hace 4 horas</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0 w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Sistema</span> creó copia de seguridad
-                </p>
-                <span className="text-xs text-gray-400">Hace 6 horas</span>
-              </div>
-            </div>
-          </motion.div>
+          {/* Se eliminaron estadísticas y actividad reciente; cuadro azul ya movido arriba */}
         </motion.div>
       </div>
     </div>
