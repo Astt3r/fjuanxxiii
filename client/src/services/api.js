@@ -1,15 +1,14 @@
 import axios from 'axios';
+import { buildMediaUrl } from '../utils/media';
 
 // Configuración base de axios
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5003/api';
 
-// Crear instancia de axios
+// Crear instancia de axios (no fijamos Content-Type por defecto para permitir FormData dinámico)
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: {},
 });
 
 // Interceptor para agregar token de autenticación
@@ -57,9 +56,7 @@ export const createFormDataApi = () => {
   const formDataApi = axios.create({
     baseURL: API_BASE_URL,
     timeout: 30000, // Mayor timeout para subida de archivos
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+    headers: {}, // dejar que el navegador establezca boundary
   });
 
   // Agregar token de autenticación
@@ -298,7 +295,13 @@ export const noticiasApi = {
       const queryString = apiUtils.buildQueryParams(params);
       const url = queryString ? `${endpoints.noticias.list}?${queryString}` : endpoints.noticias.list;
       const response = await api.get(url);
-      return apiUtils.extractData(response);
+      const data = apiUtils.extractData(response);
+      if(Array.isArray(data)) return data.map(n => ({
+        ...n,
+        imagen_url: buildMediaUrl(n.imagen_url),
+        imagenes: Array.isArray(n.imagenes) ? n.imagenes.map(img => ({...img, url: buildMediaUrl(img.url)})) : n.imagenes
+      }));
+      return data;
     } catch (error) {
       throw new Error(apiUtils.handleApiError(error));
     }
@@ -308,7 +311,9 @@ export const noticiasApi = {
   getUserNoticias: async () => {
     try {
       const response = await api.get(endpoints.noticias.userNoticias);
-      return apiUtils.extractData(response);
+  const data = apiUtils.extractData(response);
+  if(Array.isArray(data)) return data.map(n => ({ ...n, imagen_url: buildMediaUrl(n.imagen_url) }));
+  return data;
     } catch (error) {
       throw new Error(apiUtils.handleApiError(error));
     }
@@ -318,7 +323,9 @@ export const noticiasApi = {
   getById: async (id) => {
     try {
       const response = await api.get(endpoints.noticias.detail(id));
-      return apiUtils.extractData(response);
+  const n = apiUtils.extractData(response);
+  if(!n) return n;
+  return { ...n, imagen_url: buildMediaUrl(n.imagen_url), imagenes: Array.isArray(n.imagenes) ? n.imagenes.map(img => ({...img, url: buildMediaUrl(img.url)})) : n.imagenes };
     } catch (error) {
       throw new Error(apiUtils.handleApiError(error));
     }
@@ -328,7 +335,9 @@ export const noticiasApi = {
   getByIdAuth: async (id) => {
     try {
       const response = await api.get(endpoints.noticias.detailAuth(id));
-      return apiUtils.extractData(response);
+  const n = apiUtils.extractData(response);
+  if(!n) return n;
+  return { ...n, imagen_url: buildMediaUrl(n.imagen_url), imagenes: Array.isArray(n.imagenes) ? n.imagenes.map(img => ({...img, url: buildMediaUrl(img.url)})) : n.imagenes };
     } catch (error) {
       throw new Error(apiUtils.handleApiError(error));
     }
@@ -338,7 +347,9 @@ export const noticiasApi = {
   getFeatured: async () => {
     try {
       const response = await api.get(endpoints.noticias.featured);
-      return apiUtils.extractData(response);
+  const data = apiUtils.extractData(response);
+  if(Array.isArray(data)) return data.map(n => ({ ...n, imagen_url: buildMediaUrl(n.imagen_url) }));
+  return data;
     } catch (error) {
       throw new Error(apiUtils.handleApiError(error));
     }
@@ -388,6 +399,59 @@ export const noticiasApi = {
   getCategories: async () => {
     try {
       const response = await api.get(endpoints.noticias.categories);
+      return apiUtils.extractData(response);
+    } catch (error) {
+      throw new Error(apiUtils.handleApiError(error));
+    }
+  },
+
+  // Subir múltiples imágenes a una noticia existente
+  uploadImages: async (id, files) => {
+    try {
+      const fd = new FormData();
+  files.forEach(f => fd.append('imagenes', f));
+  console.log('[uploadImages] enviando', files.length, 'archivos al id', id, 'field: imagenes');
+  const response = await api.post(`/noticias/${id}/imagenes`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      return apiUtils.extractData(response);
+    } catch (error) {
+      throw new Error(apiUtils.handleApiError(error));
+    }
+  },
+
+  // Obtener listado de imágenes de una noticia
+  getImages: async (id) => {
+    try {
+      const response = await api.get(`/noticias/${id}/imagenes`);
+      return apiUtils.extractData(response);
+    } catch (error) {
+      throw new Error(apiUtils.handleApiError(error));
+    }
+  },
+
+  // Sincronizar imágenes embebidas en el contenido
+  syncImages: async (id) => {
+    try {
+      const response = await api.post(`/noticias/${id}/sincronizar-imagenes`);
+      return apiUtils.extractData(response);
+    } catch (error) {
+      throw new Error(apiUtils.handleApiError(error));
+    }
+  },
+
+  // Establecer imagen destacada (imgId debe ser el id numérico de la fila en noticias_imagenes)
+  setFeatured: async (id, imgId) => {
+    try {
+      const response = await api.put(`/noticias/${id}/imagen-destacada/${imgId}`);
+      return apiUtils.extractData(response);
+    } catch (error) {
+      throw new Error(apiUtils.handleApiError(error));
+    }
+  },
+
+  // Reordenar imágenes
+  reorderImages: async (id, orden) => {
+    try {
+      const response = await api.put(`/noticias/${id}/imagenes/orden`, { orden });
       return apiUtils.extractData(response);
     } catch (error) {
       throw new Error(apiUtils.handleApiError(error));

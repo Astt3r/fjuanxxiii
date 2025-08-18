@@ -197,7 +197,7 @@ const createTables = async () => {
         nombre_archivo VARCHAR(255) NOT NULL,
         ruta VARCHAR(500) NOT NULL,
         tipo_mime VARCHAR(100),
-        tamaño INT,
+  tamano INT,
         usuario_id INT,
         tipo_contenido VARCHAR(50),
         contenido_id INT,
@@ -215,7 +215,7 @@ const createTables = async () => {
         filename VARCHAR(255) NOT NULL,
         original_name VARCHAR(255),
         url VARCHAR(500) NOT NULL,
-        tamaño INT,
+  tamano INT,
         tipo_mime VARCHAR(100),
         orden INT DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -223,6 +223,30 @@ const createTables = async () => {
         INDEX idx_noticia (noticia_id)
       )
     `);
+    // Índice compuesto para ordenar consultas de galería (ignorar error si ya existe)
+    try {
+      await pool.execute('ALTER TABLE noticias_imagenes ADD INDEX idx_noticia_orden (noticia_id, orden)');
+    } catch(e){ /* ya existe */ }
+
+    // --- Migraciones de compatibilidad para columnas acentuadas heredadas ---
+    try {
+      const [colImg] = await pool.query("SHOW COLUMNS FROM noticias_imagenes LIKE 'tamaño'");
+      if (colImg.length) {
+        console.log('🔧 Migrando columna noticias_imagenes.tamaño -> tamano');
+        await pool.execute('ALTER TABLE noticias_imagenes CHANGE COLUMN `tamaño` `tamano` INT');
+      }
+    } catch(migErr){ console.warn('⚠️  No se pudo verificar/migrar columna tamaño en noticias_imagenes:', migErr.message); }
+    try {
+      const [colArc] = await pool.query("SHOW COLUMNS FROM archivos LIKE 'tamaño_archivo'");
+      if (colArc.length) {
+        // No renombramos aquí porque la tabla archivos usa tamaño_archivo; solo mantener consistencia futura.
+      }
+      const [colArcLegacy] = await pool.query("SHOW COLUMNS FROM archivos LIKE 'tamaño'");
+      if (colArcLegacy.length) {
+        console.log('🔧 Migrando columna archivos.tamaño -> tamano');
+        await pool.execute('ALTER TABLE archivos CHANGE COLUMN `tamaño` `tamano` INT');
+      }
+    } catch(mig2){ console.warn('⚠️  Migración columnas archivos omitida:', mig2.message); }
 
     // Backfill: asignar imagen destacada a noticias que aún no tienen (primera imagen por orden)
     try {

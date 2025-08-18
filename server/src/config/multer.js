@@ -56,21 +56,19 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Filtro de archivos para solo permitir imágenes
+// Filtro de archivos para solo permitir imágenes (según especificación: jpeg, png, webp)
 const imageFilter = (req, file, cb) => {
   const allowedImageTypes = [
     'image/jpeg',
     'image/jpg',
     'image/png',
-    'image/gif',
-    'image/webp',
-    'image/svg+xml'
+    'image/webp'
   ];
-  
+
   if (allowedImageTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Solo se permiten archivos de imagen (JPEG, PNG, GIF, WebP, SVG)'), false);
+    cb(new Error('Formato inválido. Solo se permiten imágenes JPEG, PNG o WebP'), false);
   }
 };
 

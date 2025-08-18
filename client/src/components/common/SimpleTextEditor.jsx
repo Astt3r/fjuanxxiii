@@ -134,8 +134,10 @@ const SimpleTextEditor = ({
     const file = e.target.files[0];
     if (file && onImageUpload) {
       try {
-        const imageUrl = await onImageUpload(file);
-        insertTextAtCursor(`<img src="${imageUrl}" alt="Imagen" style="max-width: 100%; height: auto;" />`);
+        const result = await onImageUpload(file);
+        const imageUrl = result?.url || result; // compat retro
+        if (!imageUrl) throw new Error('Respuesta sin URL');
+        insertTextAtCursor(`<img src="${imageUrl}" alt="Imagen" style="max-width:100%;height:auto;" />`);
       } catch (error) {
         console.error('Error al cargar imagen:', error);
       }

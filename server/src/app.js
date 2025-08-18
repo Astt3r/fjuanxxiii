@@ -47,10 +47,12 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
+      imgSrc: ["'self'", 'data:', 'https:', 'http:'], // permitir imágenes externas http (desarrollo)
       scriptSrc: ["'self'"],
     },
   },
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // permitir que otras origins (3000) consuman imágenes
+  crossOriginEmbedderPolicy: false // evitar bloqueo COEP en desarrollo
 }));
 
 // Middleware general
@@ -74,7 +76,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(logger);
 
 // Servir archivos estáticos
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  setHeaders: (res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
 
 // Rutas principales
 app.use('/api/auth', authRoutes);

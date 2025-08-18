@@ -18,7 +18,7 @@ import {
 const RichTextEditor = ({ 
   value, 
   onChange, 
-  onImageUpload, 
+  onImageUpload, // (file) => Promise<{ url }>
   placeholder = "Comienza a escribir tu contenido aquí...",
   className = "",
   showToolbar = true,
@@ -117,6 +117,10 @@ const RichTextEditor = ({
     }
     
     if (command === 'insertImage') {
+      if (!onImageUpload) {
+        alert('Subida de imágenes deshabilitada en este contexto');
+        return;
+      }
       fileInputRef.current?.click();
       return;
     }
@@ -154,52 +158,19 @@ const RichTextEditor = ({
   // Manejar carga de imagen
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
-    if (file) {
+    if (file && onImageUpload) {
       try {
-        // Crear FormData para enviar el archivo
-        const formData = new FormData();
-        formData.append('image', file);
-
-        // Subir imagen al servidor
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5003/api'}/upload/image`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: formData
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          // Usar la URL real del servidor
-          const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5003/api';
-          const serverBaseURL = baseURL.replace('/api', '');
-          const imageUrl = `${serverBaseURL}${result.data.url}`;
-          
-          // Insertar imagen en el editor
-          const imgHTML = `<img src="${imageUrl}" alt="${file.name}" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; display: block;" />`;
-          document.execCommand('insertHTML', false, imgHTML);
-          
-          // Callback para manejar la carga en el componente padre
-          if (onImageUpload) {
-            onImageUpload(file, imageUrl);
-          }
-          
-          handleContentChange();
-        } else {
-          console.error('Error al subir imagen:', result.message);
-          alert('Error al subir la imagen: ' + result.message);
-        }
-        
-      } catch (error) {
-        console.error('Error al cargar imagen:', error);
-        alert('Error al cargar la imagen. Por favor intenta de nuevo.');
+        const result = await onImageUpload(file);
+        const imageUrl = result?.url;
+        if (!imageUrl) throw new Error('Respuesta de subida sin URL');
+        const imgHTML = `<img src="${imageUrl}" alt="${file.name}" style="max-width:100%;height:auto;margin:10px 0;border-radius:8px;display:block;" />`;
+        document.execCommand('insertHTML', false, imgHTML);
+        handleContentChange();
+      } catch (e) {
+        alert(e.message || 'Error al subir la imagen');
       }
     }
-    
-    // Limpiar el input
-    event.target.value = '';
+    event.target.value='';
   };
 
   // Atajos de teclado

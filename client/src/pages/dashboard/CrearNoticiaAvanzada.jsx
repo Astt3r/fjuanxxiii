@@ -1,31 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuth } from '../../context/AuthContext';
 import { noticiasApi } from '../../services/api';
 import toast from 'react-hot-toast';
 import RichTextEditor from '../../components/common/RichTextEditor';
 import {
   PhotoIcon,
-  VideoCameraIcon,
   EyeIcon,
   PlusIcon,
   XMarkIcon,
   ArrowUpTrayIcon,
   DevicePhoneMobileIcon,
-  ComputerDesktopIcon,
-  DocumentDuplicateIcon
+  ComputerDesktopIcon
 } from '@heroicons/react/24/outline';
 
 const CrearNoticiaAvanzada = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user } = useAuth();
+  // const { user } = useAuth(); // user reservado para futura metadata
   const [loading, setLoading] = useState(false);
   const [categorias, setCategorias] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [activeTab, setActiveTab] = useState('contenido');
+  // Eliminado activeTab no usado
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [currentTag, setCurrentTag] = useState('');
   const contentRef = useRef(null);
@@ -42,7 +39,7 @@ const CrearNoticiaAvanzada = () => {
     estado: 'borrador',
     fechaPublicacion: new Date().toISOString().split('T')[0],
     imagenPrincipal: '',
-    galeria: [],
+  galeria: [], // [{ tempId, file, previewUrl, serverUrl? }]
     metaDescripcion: '',
     metaKeywords: '',
     autorPersonalizado: '',
@@ -71,7 +68,7 @@ const CrearNoticiaAvanzada = () => {
   });
 
   // Bloques de contenido disponibles
-  const contentBlocks = [
+  /* const contentBlocks = [
     { type: 'paragraph', icon: DocumentDuplicateIcon, label: 'Párrafo' },
     { type: 'heading', icon: 'H1', label: 'Título' },
     { type: 'image', icon: PhotoIcon, label: 'Imagen' },
@@ -80,24 +77,24 @@ const CrearNoticiaAvanzada = () => {
     { type: 'quote', icon: 'Q', label: 'Cita' },
     { type: 'list', icon: 'UL', label: 'Lista' },
     { type: 'separator', icon: '—', label: 'Separador' }
-  ];
+  ]; */
 
   // Layouts de galería
-  const galleryLayouts = [
+  /* const galleryLayouts = [
     { id: 'grid-2', name: 'Dos columnas', cols: 2 },
     { id: 'grid-3', name: 'Tres columnas', cols: 3 },
     { id: 'masonry', name: 'Mosaico', cols: 'masonry' },
     { id: 'carousel', name: 'Carrusel', cols: 'carousel' }
-  ];
+  ]; */
 
   // Temas visuales
-  const temas = [
+  /* const temas = [
     { id: 'default', name: 'Por defecto', color: '#1e40af' },
     { id: 'clean', name: 'Limpio', color: '#6b7280' },
     { id: 'modern', name: 'Moderno', color: '#059669' },
     { id: 'elegant', name: 'Elegante', color: '#7c3aed' },
     { id: 'catholic', name: 'Católico', color: '#dc2626' }
-  ];
+  ]; */
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -106,6 +103,7 @@ const CrearNoticiaAvanzada = () => {
       loadNoticia();
     }
     loadCategorias();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadCategorias = async () => {
@@ -209,85 +207,17 @@ const CrearNoticiaAvanzada = () => {
 
   // Manejar upload de imágenes
   const handleImageUpload = async (event) => {
-    const files = Array.from(event.target.files);
-    
-    if (files.length === 0) return;
-
-    setLoading(true);
-    
-    for (const file of files) {
-      try {
-        // Crear carpeta automática basada en la fecha y título
-        const fechaHoy = new Date().toISOString().split('T')[0];
-        const tituloLimpio = formData.titulo.toLowerCase()
-          .replace(/[^a-z0-9\s]/g, '')
-          .replace(/\s+/g, '-')
-          .substring(0, 30);
-        
-        const carpeta = tituloLimpio || `noticia-${fechaHoy}`;
-        
-        // Crear FormData para el upload
-        const uploadData = new FormData();
-        uploadData.append('image', file);
-        uploadData.append('folder', `noticias/${carpeta}`);
-        
-        // TODO: Enviar a la API de upload cuando esté disponible
-        // const response = await api.post('/uploads/image', uploadData);
-        
-        // Por ahora, usamos URL local hasta que esté la API
-        const imageUrl = URL.createObjectURL(file);
-        
-        setFormData(prev => ({
-          ...prev,
-          galeria: [...prev.galeria, {
-            id: Date.now() + Math.random(),
-            url: imageUrl,
-            name: file.name,
-            alt: file.name.split('.')[0],
-            folder: `uploads/noticias/${carpeta}`
-          }]
-        }));
-        
-        toast.success(`Imagen ${file.name} cargada exitosamente`);
-      } catch (error) {
-        toast.error(`Error cargando ${file.name}: ${error.message}`);
-      }
-    }
-    
-    setLoading(false);
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+  const newItems = files.map(f => ({ tempId: Date.now()+Math.random(), file: f, previewUrl: URL.createObjectURL(f), url: '' }));
+    setFormData(prev => ({ ...prev, galeria: [...prev.galeria, ...newItems] }));
   };
 
   // Manejar imagen principal
   const handleImagenPrincipal = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    try {
-      setLoading(true);
-      
-      // Crear carpeta automática
-      const fechaHoy = new Date().toISOString().split('T')[0];
-      const tituloLimpio = formData.titulo.toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\s+/g, '-')
-        .substring(0, 30);
-      
-      const carpeta = tituloLimpio || `noticia-${fechaHoy}`;
-      
-      // Por ahora usar URL local
-      const imageUrl = URL.createObjectURL(file);
-      
-      setFormData(prev => ({
-        ...prev,
-        imagenPrincipal: imageUrl
-      }));
-      
-      toast.success('Imagen principal cargada exitosamente');
-    } catch (error) {
-      toast.error('Error al cargar imagen principal');
-    } finally {
-      setLoading(false);
-    }
+    const file = event.target.files?.[0];
+    if(!file) return;
+    setFormData(prev => ({ ...prev, imagenPrincipal: URL.createObjectURL(file), imagenPrincipalFile: file }));
   };
 
   // Guardar noticia
@@ -313,14 +243,42 @@ const CrearNoticiaAvanzada = () => {
         fecha_publicacion: estado === 'publicado' ? new Date().toISOString() : null
       };
 
+      let noticiaId = id;
       if (isEditing) {
         await noticiasApi.update(id, dataToSend);
-        toast.success('Noticia actualizada exitosamente');
       } else {
-        await noticiasApi.create(dataToSend);
-        toast.success('Noticia creada exitosamente');
+        const created = await noticiasApi.create(dataToSend);
+        noticiaId = created.id;
       }
 
+      // Subir imágenes de galería si existen archivos locales
+      const galleryFiles = formData.galeria.filter(g => g.file).map(g => g.file);
+      if (galleryFiles.length) {
+        try {
+          await noticiasApi.uploadImages(noticiaId, galleryFiles);
+        } catch (e) {
+          toast.error('Error subiendo imágenes de galería: ' + e.message);
+        }
+      }
+
+      // Imagen principal: subir y marcar como destacada usando el id de la imagen devuelta
+      if (formData.imagenPrincipalFile && !isEditing) {
+        try {
+          const up = await noticiasApi.uploadImages(noticiaId, [formData.imagenPrincipalFile]);
+          const subida = up?.imagenes?.slice(-1)[0];
+          if (subida?.id) {
+            await noticiasApi.setFeatured(noticiaId, subida.id);
+          } else if (subida?.url) {
+            // Fallback temporal si backend aún acepta url (deprecar pronto)
+            await noticiasApi.setFeatured(noticiaId, subida.url);
+          }
+        } catch(e){ toast.error('Error subiendo imagen principal: '+e.message); }
+      }
+
+      // Sincronizar imágenes embebidas en el HTML
+      try { await noticiasApi.syncImages(noticiaId); } catch(_){}
+
+      toast.success(isEditing ? 'Noticia actualizada' : 'Noticia creada');
       navigate('/dashboard/contenido');
     } catch (error) {
       console.error('Error detallado:', error);
@@ -450,16 +408,26 @@ const CrearNoticiaAvanzada = () => {
                 <RichTextEditor
                   value={formData.contenido}
                   onChange={(content) => setFormData(prev => ({ ...prev, contenido: content }))}
-                  onImageUpload={(file, url) => {
-                    setFormData(prev => ({
-                      ...prev,
-                      galeria: [...prev.galeria, {
-                        id: Date.now() + Math.random(),
-                        url: url,
-                        name: file.name,
-                        alt: file.name.split('.')[0]
-                      }]
-                    }));
+                  onImageUpload={async (file) => {
+                    // Asegurar noticia (borrador) existe antes de subir
+                    try {
+                      let noticiaId = id;
+                      if(!noticiaId){
+                        if(!formData.titulo.trim()) throw new Error('Define un título antes de subir imágenes');
+                        const draft = await noticiasApi.create({ titulo: formData.titulo, slug: formData.titulo.toLowerCase().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-'), contenido: formData.contenido || '<p></p>', estado: 'borrador' });
+                        noticiaId = draft.id;
+                        // Guardar id & slug real (por si se auto-ajustó) en el estado para siguientes operaciones
+                        setFormData(prev => ({
+                          ...prev,
+                          seo: { ...prev.seo, slug: draft.slug || prev.seo.slug },
+                          noticiaIdDraft: noticiaId
+                        }));
+                      }
+                      const up = await noticiasApi.uploadImages(noticiaId, [file]);
+                      const img = up?.imagenes?.slice(-1)[0];
+                      if(!img?.url) throw new Error('Subida sin URL');
+                      return { url: img.url };
+                    } catch(e){ toast.error(e.message || 'Error subiendo imagen'); throw e; }
                   }}
                   placeholder="Comienza a escribir el contenido de tu noticia..."
                   minHeight="500px"
@@ -478,10 +446,10 @@ const CrearNoticiaAvanzada = () => {
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Galería de imágenes</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {formData.galeria.map((image, index) => (
-                    <div key={image.id} className="relative group">
+                    <div key={image.tempId || image.id || image.filename || index} className="relative group">
                       <img
-                        src={image.url}
-                        alt={image.alt}
+                        src={image.previewUrl || image.url}
+                        alt={image.alt || image.name || 'imagen'}
                         className="w-full h-32 object-cover rounded-lg"
                       />
                       <button
@@ -692,17 +660,17 @@ const CrearNoticiaAvanzada = () => {
               {/* Galería preview */}
               {formData.galeria.length > 0 && (
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {formData.galeria.map((imagen) => (
-                    <div key={imagen.id} className="relative">
+                  {formData.galeria.map((imagen, idx) => (
+                    <div key={imagen.tempId || imagen.id || imagen.filename || `g-${idx}`} className="relative">
                       <img
-                        src={imagen.url}
-                        alt={imagen.alt}
+                        src={imagen.previewUrl || imagen.url}
+                        alt={imagen.alt || imagen.original_name || 'imagen'}
                         className="w-full h-24 object-cover rounded-lg"
                       />
                       <button
                         onClick={() => setFormData(prev => ({
                           ...prev,
-                          galeria: prev.galeria.filter(img => img.id !== imagen.id)
+                          galeria: prev.galeria.filter((_, i) => i !== idx)
                         }))}
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                       >

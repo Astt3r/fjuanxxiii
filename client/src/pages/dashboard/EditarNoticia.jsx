@@ -1,54 +1,17 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../../context/AuthContext';
 import { noticiasApi } from '../../services/api';
 import toast from 'react-hot-toast';
-import {
-  PhotoIcon,
-  VideoCameraIcon,
-  DocumentTextIcon,
-  LinkIcon,
-  EyeIcon,
-  CalendarIcon,
-  TagIcon,
-  BookmarkIcon,
-  StarIcon,
-  PlusIcon,
-  XMarkIcon,
-  ArrowUpTrayIcon,
-  BoldIcon,
-  ItalicIcon,
-  UnderlineIcon,
-  ListBulletIcon,
-  NumberedListIcon,
-  CodeBracketIcon,
-  ChatBubbleLeftIcon,
-  H1Icon,
-  H2Icon,
-  H3Icon,
-  TableCellsIcon,
-  DevicePhoneMobileIcon,
-  ComputerDesktopIcon,
-  CheckIcon,
-  ExclamationTriangleIcon,
-  ArrowLeftIcon
-} from '@heroicons/react/24/outline';
+import { EyeIcon, CheckIcon, ArrowLeftIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const EditarNoticia = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user } = useAuth();
+  // const { user } = useAuth(); // reservado para permisos avanzados
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [categorias, setCategorias] = useState([]);
   const [previewMode, setPreviewMode] = useState(false);
-  const [activeTab, setActiveTab] = useState('contenido');
-  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
-  const [selectedImages, setSelectedImages] = useState([]);
-  const [galleryLayout, setGalleryLayout] = useState('grid-2');
-  const contentRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   // Estado del formulario
   const [formData, setFormData] = useState({
@@ -71,12 +34,14 @@ const EditarNoticia = () => {
       enviarNotificaciones: false
     }
   });
+  // TODO: Adaptar este editor para usar listado de imagenes (noticiasApi.getImages) y setFeatured(idImagen)
 
   // Cargar datos de la noticia
   useEffect(() => {
     if (id) {
       loadNoticia();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadNoticia = async () => {
@@ -181,6 +146,7 @@ const EditarNoticia = () => {
       };
 
   await noticiasApi.update(id, dataToSend);
+  try { await noticiasApi.syncImages(id); } catch(_){}
   toast.success('Noticia actualizada correctamente');
   navigate('/dashboard/contenido');
     } catch (error) {

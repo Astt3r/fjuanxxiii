@@ -118,8 +118,9 @@ const CrearNoticia = () => {
           ...formData,
           fecha_publicacion: formData.estado === 'publicado' ? new Date().toISOString() : null
         };
-
         await noticiasApi.update(id, noticiaData);
+        // Sincronizar imágenes embebidas tras actualización
+        try { await noticiasApi.syncImages(id); } catch(_){}
         toast.success('Noticia actualizada exitosamente');
         navigate('/dashboard/contenido');
       } else {
@@ -140,14 +141,11 @@ const CrearNoticia = () => {
           fecha_publicacion: formData.estado === 'publicado' ? new Date().toISOString() : null
         };
 
-        const response = await noticiasApi.create(noticiaData);
-        
-        if (response && response.id) {
-          toast.success('Noticia creada exitosamente');
-          navigate('/dashboard/contenido');
-        } else {
-          throw new Error('Error en la respuesta del servidor');
-        }
+  const response = await noticiasApi.create(noticiaData);
+  if (!response || !response.id) throw new Error('Respuesta sin ID');
+  try { await noticiasApi.syncImages(response.id); } catch(_){}
+  toast.success('Noticia creada exitosamente');
+  navigate('/dashboard/contenido');
       }
     } catch (error) {
       console.error(`Error ${isEditing ? 'actualizando' : 'creando'} noticia:`, error);
@@ -167,29 +165,23 @@ const CrearNoticia = () => {
 
   const handleImageUpload = async (file) => {
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-      
-      // Usar la misma API que para otras imágenes
-  const response = await fetch('/api/uploads/image', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
-      });
-      
-      if (!response.ok) {
-        throw new Error('Error al subir la imagen');
+      let currentId = id;
+      if (!currentId) {
+        if (!formData.titulo.trim()) throw new Error('Define un título antes de subir imágenes');
+        const draft = await noticiasApi.create({
+          titulo: formData.titulo,
+          slug: formData.titulo.toLowerCase().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-'),
+          contenido: formData.contenido || '<p></p>',
+          estado: 'borrador'
+        });
+        currentId = draft.id;
       }
-      
-  const result = await response.json();
-  const url = result?.data?.url || result?.url || result?.data?.path;
-  if (!url) throw new Error('Respuesta de subida sin URL');
-  return url;
+      const up = await noticiasApi.uploadImages(currentId, [file]);
+      const img = up?.imagenes?.slice(-1)[0];
+      if (!img?.url) throw new Error('Respuesta sin imagen subida');
+      return img.url; // editor necesita URL para insertar
     } catch (error) {
-      console.error('Error uploading image:', error);
-      toast.error('Error al subir la imagen');
+      toast.error(error.message || 'Error al subir imagen');
       throw error;
     }
   };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { motion } from 'framer-motion';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -11,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import API_CONFIG from '../config/api';
+import { buildMediaUrl, rewriteContentMedia, normalizeImagenesArray } from '../utils/media';
 
 const NoticiaDetalle = () => {
   const { id } = useParams();
@@ -42,7 +44,14 @@ const NoticiaDetalle = () => {
 
       if (resp.ok) {
         const result = await resp.json();
-        const data = result.data || result;
+        let data = result.data || result;
+        // Normalizar URLs de imágenes (featured y array)
+        data = {
+          ...data,
+          imagen_url: buildMediaUrl(data.imagen_url),
+          imagenes: Array.isArray(data.imagenes) ? normalizeImagenesArray(data.imagenes) : data.imagenes,
+          contenido: rewriteContentMedia(data.contenido)
+        };
         setNoticia(data);
       } else {
         throw new Error('No se pudo cargar la noticia');
@@ -183,10 +192,10 @@ const NoticiaDetalle = () => {
           >
             {/* Imagen destacada */}
             {/* Imagen principal (si hay varias, tomar la primera) */}
-            { (noticia.imagen_url || (Array.isArray(noticia.imagenes) && noticia.imagenes[0])) && (
+    { (noticia.imagen_url || (Array.isArray(noticia.imagenes) && noticia.imagenes[0])) && (
               <div className="h-64 md:h-96 overflow-hidden bg-gray-100">
                 <img 
-                  src={noticia.imagen_url || noticia.imagenes[0].url} 
+      src={noticia.imagen_url || noticia.imagenes[0].url} 
                   alt={noticia.titulo}
                   className="w-full h-full object-cover"
                   onError={(e) => {
@@ -263,9 +272,9 @@ const NoticiaDetalle = () => {
 
               {/* Contenido */}
               {noticia.contenido && (
-                <div 
+                <div
                   className="prose prose-lg max-w-none text-gray-700 leading-relaxed prose-headings:text-gray-900 prose-a:text-blue-600 prose-strong:text-gray-900"
-                  dangerouslySetInnerHTML={{ __html: noticia.contenido }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(noticia.contenido || '') }}
                 />
               )}
 

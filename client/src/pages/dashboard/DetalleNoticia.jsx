@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { noticiasApi } from '../../services/api';
@@ -188,17 +189,16 @@ const DetalleNoticia = () => {
 
             {/* Contenido del artículo */}
             <div className="px-8 py-8">
-              <div className="prose prose-lg max-w-none">
-                <div 
-                  className="text-gray-800 leading-relaxed whitespace-pre-wrap"
-                  style={{ 
-                    lineHeight: '1.7',
-                    fontSize: '1.1rem'
-                  }}
-                >
-                  {noticia.contenido}
+              {Array.isArray(noticia.imagenes) && noticia.imagenes.length > 1 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                  {noticia.imagenes.slice(1).map(img => (
+                    <div key={img.id} className="relative group rounded-lg overflow-hidden border">
+                      <img src={img.url} alt={noticia.titulo} className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
+              <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(noticia.contenido || '') }} />
             </div>
 
             {/* Footer con información adicional */}
