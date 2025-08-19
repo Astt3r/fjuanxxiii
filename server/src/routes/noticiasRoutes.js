@@ -132,6 +132,16 @@ router.get('/detalle/:id', authenticateToken, async (req,res)=>{
   } catch(e){ console.error(e); R.fail(res,'Error al obtener noticia',500,{error:e.message}); }
 });
 
+// ---------------------------------------------------------------
+// Noticias destacadas (debe ir antes de '/:id' para no colisionar)
+// ---------------------------------------------------------------
+router.get('/featured', async (_req,res)=>{
+  try {
+    const rows = await db.query(`SELECT ${BASE_FIELDS}, u.nombre as autor FROM noticias n LEFT JOIN usuarios u ON n.autor_id=u.id WHERE n.estado='publicado' AND n.destacado=1 ORDER BY n.fecha_publicacion DESC`);
+    R.ok(res, rows);
+  } catch(e){ console.error(e); R.fail(res,'Error al obtener noticias destacadas',500,{error:e.message}); }
+});
+
 router.get('/:id', async (req,res)=>{
   try {
     const { id }=req.params;

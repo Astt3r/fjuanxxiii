@@ -1,7 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 
@@ -41,21 +39,10 @@ import GestionarContenido from './pages/dashboard/GestionarContenido';
 import DetalleNoticia from './pages/dashboard/DetalleNoticia';
 import NotFound from './pages/NotFound';
 
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 30, // 30 minutes
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+// (Se removió TanStack React Query)
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
           <Router>
@@ -81,9 +68,18 @@ function App() {
                     <Route path="/protocolos" element={<Protocolos />} />
                     <Route path="/contacto" element={<Contacto />} />
                     
-                    {/* Rutas de autenticación */}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
+                    {/* Rutas de autenticación (deshabilitadas en producción) */}
+                    {process.env.NODE_ENV !== 'production' ? (
+                      <>
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/register" element={<Register />} />
+                      </>
+                    ) : (
+                      <>
+                        <Route path="/login" element={<Navigate to="/" replace />} />
+                        <Route path="/register" element={<Navigate to="/" replace />} />
+                      </>
+                    )}
                     
                     {/* Rutas protegidas */}
                     <Route 
@@ -195,14 +191,9 @@ function App() {
               }}
             />
             
-            {/* React Query DevTools - Solo en desarrollo */}
-            {process.env.NODE_ENV === 'development' && (
-              <ReactQueryDevtools initialIsOpen={false} />
-            )}
           </Router>
         </AuthProvider>
       </ThemeProvider>
-    </QueryClientProvider>
   );
 }
 

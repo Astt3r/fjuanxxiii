@@ -276,27 +276,7 @@ const Header = () => {
                   )}
                 </AnimatePresence>
               </div>
-            ) : (
-              // Usuario no autenticado
-              <div className="hidden sm:flex items-center space-x-3">
-                <Link
-                  to="/login"
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    isScrolled
-                      ? 'text-gray-700 hover:text-primary-600'
-                      : 'text-white hover:text-primary-200'
-                  }`}
-                >
-                  Iniciar sesión
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                >
-                  Registrarse
-                </Link>
-              </div>
-            )}
+            ) : null}
 
             {/* Botón menú móvil */}
             <button
@@ -416,23 +396,7 @@ const Header = () => {
                   </a>
                 </div>
                 
-                {!isAuthenticated && (
-                  <>
-                    <hr className="my-2" />
-                    <Link
-                      to="/login"
-                      className="block px-4 py-3 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      Iniciar sesión
-                    </Link>
-                    <Link
-                      to="/register"
-                      className="block px-4 py-3 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                    >
-                      Registrarse
-                    </Link>
-                  </>
-                )}
+                {/* Se removieron enlaces de autenticación del menú móvil */}
               </div>
             </motion.div>
           )}
