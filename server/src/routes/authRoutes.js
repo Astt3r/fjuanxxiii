@@ -1,18 +1,32 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const db = require('../config/database');
 const R = require('../utils/response');
+const { registerGuard } = require('../middleware/registerGuard');
+const { validateInvitation, markInvitationUsed } = require('../services/invitationsService');
 
 // JWT secret validado en el arranque
 const JWT_SECRET = process.env.JWT_SECRET;
 
+// Validador reutilizable
+const passwordPolicy = (value) => {
+  if(!value || value.length < 10) throw new Error('Password inválido');
+  if(!/[0-9]/.test(value) || !/[A-Za-z]/.test(value)) throw new Error('Password inválido');
+  return true;
+};
+
 // Ruta de login
-router.post('/login', async (req, res) => {
+router.post('/login', [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isString().isLength({ min: 1 })
+], async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) return R.fail(res, 'Credenciales inválidas', 401);
     const { email, password } = req.body;
-    if (!email || !password) return R.fail(res, 'Email y contraseña son requeridos', 400);
 
     const users = await db.query('SELECT id, nombre, email, password, rol, estado FROM usuarios WHERE email = ? AND estado = "activo"', [email]);
     if (!users.length) return R.fail(res, 'Credenciales inválidas', 401);
@@ -73,3 +87,39 @@ router.post('/logout', (req, res) => R.ok(res, { logout: true }));
 router.verifyToken = verifyToken;
 
 module.exports = router;
+
+// Registro (cuenta restringida por REGISTER_OPEN o invitación)
+router.post('/register', registerGuard, [
+  body('nombre').optional().trim().isLength({ min: 2 }).escape(),
+  body('email').isEmail().withMessage('Email inválido').normalizeEmail(),
+  body('password').custom(passwordPolicy),
+  body('invitationCode').optional().isString().isLength({ min: 10 })
+], async (req,res) => {
+  try {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) return R.fail(res,'Datos inválidos',400,{ errors: errors.array().map(e=>({ field:e.path, msg:e.msg })) });
+    const { nombre, email, password, invitationCode } = req.body;
+
+    // Comprobar duplicado (unique index también protege)
+    const existing = await db.query('SELECT id FROM usuarios WHERE email = ?', [email]);
+    if(existing.length) return R.fail(res,'Credenciales inválidas',409); // mensaje genérico
+
+    let role = 'admin'; // por diseño actual (solo admin/propietario). Adaptar según expansión futura.
+    if(process.env.REGISTER_OPEN !== 'true') {
+      // Requiere invitación
+      const invite = await validateInvitation(invitationCode, email);
+      if(!invite) return R.fail(res,'Credenciales inválidas',401);
+      role = invite.role || role;
+      await markInvitationUsed(invite.id);
+    }
+
+    const saltRounds = Math.max(parseInt(process.env.BCRYPT_COST||'12',10),12);
+    const hash = await bcrypt.hash(password, saltRounds);
+    await db.query('INSERT INTO usuarios (nombre, email, password, rol, estado) VALUES (?,?,?,?,"activo")', [nombre||email.split('@')[0], email, hash, role]);
+    R.created(res,{ registered:true });
+  } catch(e){
+    if(e.code==='ER_DUP_ENTRY') return R.fail(res,'Credenciales inválidas',409);
+    console.error('Error en registro:', e);
+    R.fail(res,'Error interno del servidor',500);
+  }
+});

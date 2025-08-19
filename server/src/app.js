@@ -19,6 +19,8 @@ const contactRoutes = require('./routes/contactRoutes');
 const eventsRoutes = require('./routes/events');
 const protocolsRoutes = require('./routes/protocols');
 const staffRoutes = require('./routes/staff');
+const adminInvitationsRoutes = require('./routes/adminInvitationsRoutes');
+const { pool } = require('./config/database');
 
 // Importar middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -40,33 +42,49 @@ const limiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-// Middleware de seguridad
+// trust proxy para detectar HTTPS detrás de reverse proxy
+app.enable('trust proxy');
+
+// Middleware de seguridad (helmet + HSTS)
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", 'data:', 'https:', 'http:'], // permitir imágenes externas http (desarrollo)
+      imgSrc: ["'self'", 'data:', 'https:', 'http:'],
       scriptSrc: ["'self'"],
     },
   },
-  crossOriginResourcePolicy: { policy: 'cross-origin' }, // permitir que otras origins (3000) consuman imágenes
-  crossOriginEmbedderPolicy: false // evitar bloqueo COEP en desarrollo
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginEmbedderPolicy: false,
 }));
+if(process.env.ENFORCE_HTTPS === 'true'){
+  app.use((req,res,next)=>{
+    if(req.secure) return next();
+    return res.redirect(301, 'https://' + req.headers.host + req.originalUrl);
+  });
+  // HSTS (solo si estamos forzando https)
+  app.use(helmet.hsts({ maxAge: 15552000 })); // 180 días
+}
 
 // Middleware general
 app.use(compression());
 app.use(limiter);
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000'
+];
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    process.env.CLIENT_URL || 'http://localhost:3000'
-  ],
+  origin: function(origin, cb){
+    if(!origin) return cb(null, true); // permitir no-CORS (curl, server-side)
+    if(allowedOrigins.includes(origin)) return cb(null,true);
+    return cb(new Error('CORS bloqueado'), false);
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
   optionsSuccessStatus: 200
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -84,7 +102,14 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
 }));
 
 // Rutas principales
-app.use('/api/auth', authRoutes);
+// Rate limit específico para auth (más estricto)
+const authLimiter = rateLimit({
+  windowMs: 15*60*1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/noticias', noticiasRoutes);
 app.use('/api/colegios', colegiosRoutes);
@@ -92,17 +117,20 @@ app.use('/api/schools', colegiosRoutes); // Alias para compatibilidad
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/events', eventsRoutes);
+app.use('/api/admin/invitations', adminInvitationsRoutes);
 // app.use('/api/protocols', protocolsRoutes);
 // app.use('/api/staff', staffRoutes);
 
-// Ruta de salud
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'Servidor funcionando correctamente',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+// Ruta de salud con comprobación de DB
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'down';
+  try {
+    await pool.query('SELECT 1');
+    dbStatus = 'up';
+  } catch(e){
+    dbStatus = 'error';
+  }
+  res.json({ ok:true, db: dbStatus, ts: Date.now() });
 });
 
 // Ruta raíz
