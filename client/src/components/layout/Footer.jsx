@@ -7,10 +7,8 @@ const Footer = () => {
 
   const footerLinks = {
     institucional: [
-      { label: 'Nosotros', to: '/nosotros' },
-      { label: 'Misión y Visión', to: '/nosotros#mision-vision' },
-      { label: 'Historia', to: '/nosotros#historia' },
-      { label: 'Equipo', to: '/nosotros#equipo' },
+      { label: 'Nosotros', to: '/nuestra-historia' },
+
     ],
     servicios: [
       { label: 'Pastoral Educativa', to: '/pastoral' },

@@ -183,7 +183,7 @@ const Home = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-secondary-400 to-secondary-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </Link>
                   <Link 
-                    to="/nosotros"
+                    to="/nuestra-historia"
                     className="group border-2 border-white hover:bg-white hover:text-primary-800 font-bold py-5 px-10 rounded-full transition-all duration-300 text-center backdrop-blur-sm"
                   >
                     <span className="group-hover:text-primary-800">Nuestra Historia</span>
