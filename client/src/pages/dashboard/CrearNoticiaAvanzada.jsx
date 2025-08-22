@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { noticiasApi } from '../../services/api';
@@ -23,7 +24,8 @@ const CrearNoticiaAvanzada = () => {
   const [loading, setLoading] = useState(false);
   const [categorias, setCategorias] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  // previewMode deprecado, ahora usamos previewOpen modal
+  const [previewOpen, setPreviewOpen] = useState(false);
   // Eliminado activeTab no usado
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -336,12 +338,8 @@ const CrearNoticiaAvanzada = () => {
             <div className="flex items-center space-x-3">
               {/* Vista previa */}
               <button
-                onClick={() => setPreviewMode(!previewMode)}
-                className={`flex items-center space-x-2 px-3 py-2 text-sm border rounded-md transition-colors ${
-                  previewMode 
-                    ? 'bg-primary-50 border-primary-300 text-primary-700' 
-                    : 'border-gray-300 hover:bg-gray-50'
-                }`}
+                onClick={() => setPreviewOpen(true)}
+                className="flex items-center space-x-2 px-3 py-2 text-sm border rounded-md transition-colors border-gray-300 hover:bg-gray-50"
               >
                 <EyeIcon className="h-4 w-4" />
                 <span>Vista previa</span>
@@ -459,7 +457,7 @@ const CrearNoticiaAvanzada = () => {
               </div>
             </motion.div>
 
-            {/* Galería de imágenes */}
+            {/* Galería de imágenes grande (principal en editor) */}
             {formData.galeria.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -467,26 +465,50 @@ const CrearNoticiaAvanzada = () => {
                 transition={{ delay: 0.2 }}
                 className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
               >
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Galería de imágenes</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center justify-between">
+                  Galería de imágenes
+                  <span className="text-xs text-gray-500 font-normal">Haz clic en una imagen para ampliar. Usa 'Destacar' para imagen principal.</span>
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {formData.galeria.map((image, index) => (
                     <div key={image.tempId || image.id || image.filename || index} className="relative group">
                       <img
+                        onClick={() => { setLightboxIndex(index); setLightboxOpen(true); }}
                         src={image.previewUrl || image.url}
                         alt={image.alt || image.name || 'imagen'}
-                        className="w-full h-32 object-cover rounded-lg"
+                        className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-90"
                       />
-                      <button
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            galeria: prev.galeria.filter((_, i) => i !== index)
-                          }));
-                        }}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg transition-colors flex flex-col justify-between p-2">
+                        <div className="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFormData(prev => ({
+                                ...prev,
+                                galeria: prev.galeria.filter((_, i) => i !== index)
+                              }));
+                            }}
+                            className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                            title="Eliminar"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if(image.id){
+                                try { await noticiasApi.setFeatured(id || formData.noticiaIdDraft, image.id); toast.success('Imagen destacada actualizada'); setFormData(prev=>({...prev, imagenPrincipal: image.url })); } catch(err){ toast.error('Error al destacar'); }
+                              } else {
+                                toast('Sube primero la imagen (guardar/publicar)');
+                              }
+                            }}
+                            className="px-2 py-1 bg-primary-600 hover:bg-primary-700 text-white text-xs rounded shadow"
+                          >Destacar</button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -698,18 +720,6 @@ const CrearNoticiaAvanzada = () => {
                       />
                       <button
                         type="button"
-                        onClick={async () => {
-                          // Si tiene id de server, establecer como destacada
-                          if(imagen.id){
-                            try { await noticiasApi.setFeatured(id || formData.noticiaIdDraft, imagen.id); toast.success('Imagen destacada actualizada'); setFormData(prev=>({...prev, imagenPrincipal: imagen.url })); } catch(e){ toast.error('Error al destacar'); }
-                          } else {
-                            toast('Sube primero la imagen (guardar borrador/publicar)');
-                          }
-                        }}
-                        className="absolute left-1 top-1 bg-black/40 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100"
-                      >Destacar</button>
-                      <button
-                        type="button"
                         onClick={() => setFormData(prev => ({
                           ...prev,
                           galeria: prev.galeria.filter((_, i) => i !== idx)
@@ -790,12 +800,8 @@ const CrearNoticiaAvanzada = () => {
             <div className="flex items-center space-x-4">
               {/* Vista previa */}
               <button
-                onClick={() => setPreviewMode(!previewMode)}
-                className={`flex items-center space-x-2 px-4 py-2 text-sm border rounded-md transition-colors ${
-                  previewMode 
-                    ? 'bg-primary-50 border-primary-300 text-primary-700' 
-                    : 'border-gray-300 hover:bg-gray-50'
-                }`}
+                onClick={() => setPreviewOpen(true)}
+                className="flex items-center space-x-2 px-4 py-2 text-sm border rounded-md transition-colors border-gray-300 hover:bg-gray-50"
               >
                 <EyeIcon className="h-4 w-4" />
                 <span>Vista previa</span>
@@ -877,6 +883,42 @@ const CrearNoticiaAvanzada = () => {
                   />
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {previewOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white max-w-5xl w-full rounded-lg shadow-xl relative">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold">Vista previa</h2>
+              <button onClick={()=>setPreviewOpen(false)} className="text-gray-500 hover:text-gray-700">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">{formData.titulo || 'Sin título'}</h1>
+                {formData.resumen && <p className="text-gray-600 mb-4">{formData.resumen}</p>}
+              </div>
+              {formData.imagenPrincipal && (
+                <div className="rounded-lg overflow-hidden border">
+                  <img src={formData.imagenPrincipal} alt="principal" className="w-full max-h-96 object-cover" />
+                </div>
+              )}
+              {formData.galeria.length>0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {formData.galeria.map((g,i)=>(
+                    <img key={g.id||g.tempId||i} src={g.previewUrl||g.url} alt="galería" className="w-full h-32 object-cover rounded" />
+                  ))}
+                </div>
+              )}
+              <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formData.contenido || '<p>(Sin contenido)</p>') }} />
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end space-x-3 bg-gray-50 rounded-b-lg">
+              <button onClick={()=>setPreviewOpen(false)} className="px-4 py-2 text-sm border rounded-md hover:bg-gray-100">Cerrar</button>
+              <button onClick={()=>{ setPreviewOpen(false); handleSubmit('borrador'); }} className="px-4 py-2 text-sm border rounded-md bg-white hover:bg-gray-100">Guardar borrador</button>
+              <button onClick={()=>{ setPreviewOpen(false); handleSubmit('publicado'); }} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700">Publicar</button>
             </div>
           </div>
         </div>

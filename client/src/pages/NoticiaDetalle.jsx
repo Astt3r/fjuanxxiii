@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DOMPurify from 'dompurify';
 import { motion } from 'framer-motion';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -20,11 +20,24 @@ const NoticiaDetalle = () => {
   const [noticia, setNoticia] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxImages, setLightboxImages] = useState([]);
 
   useEffect(() => {
     cargarNoticia();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Handler click imágenes dentro del contenido (delegación)
+  const handleContentClick = useCallback((e)=>{
+    const target = e.target;
+    if(target && target.tagName==='IMG'){
+      const src = target.getAttribute('src');
+      const idx = lightboxImages.findIndex(i=>i.url===src);
+      if(idx>=0){ setLightboxIndex(idx); setLightboxOpen(true); }
+    }
+  },[lightboxImages]);
 
   const cargarNoticia = async () => {
     try {
@@ -52,6 +65,15 @@ const NoticiaDetalle = () => {
           imagenes: Array.isArray(data.imagenes) ? normalizeImagenesArray(data.imagenes) : data.imagenes,
           contenido: rewriteContentMedia(data.contenido)
         };
+        // Preparar arreglo de imágenes para lightbox (principal primero)
+        const imgs = [];
+        if(data.imagen_url) imgs.push({ url: data.imagen_url });
+        if(Array.isArray(data.imagenes)){
+          for(const im of data.imagenes){
+            if(!imgs.find(i=>i.url===im.url)) imgs.push({ url: im.url });
+          }
+        }
+        setLightboxImages(imgs);
         setNoticia(data);
       } else {
         throw new Error('No se pudo cargar la noticia');
@@ -166,7 +188,10 @@ const NoticiaDetalle = () => {
     );
   }
 
+  
+
   return (
+    <>
     <div className="min-h-screen bg-gray-50">
       {/* Navegación */}
       <div className="bg-white border-b pt-20">
@@ -263,9 +288,17 @@ const NoticiaDetalle = () => {
               {Array.isArray(noticia.imagenes) && noticia.imagenes.length > 1 && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                   {noticia.imagenes.slice(1).map(img => (
-                    <div key={img.id} className="relative group rounded-lg overflow-hidden border">
+                    <button
+                      type="button"
+                      key={img.id}
+                      className="relative group rounded-lg overflow-hidden border focus:outline-none"
+                      onClick={() => {
+                        const idx = lightboxImages.findIndex(i=>i.url===img.url);
+                        setLightboxIndex(idx>=0?idx:0); setLightboxOpen(true);
+                      }}
+                    >
                       <img src={img.url} alt={noticia.titulo} className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -273,7 +306,8 @@ const NoticiaDetalle = () => {
               {/* Contenido */}
               {noticia.contenido && (
                 <div
-                  className="prose prose-lg max-w-none text-gray-700 leading-relaxed prose-headings:text-gray-900 prose-a:text-blue-600 prose-strong:text-gray-900"
+                  className="prose prose-lg max-w-none text-gray-700 leading-relaxed prose-headings:text-gray-900 prose-a:text-blue-600 prose-strong:text-gray-900 cursor-pointer"
+                  onClick={handleContentClick}
                   dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(noticia.contenido || '') }}
                 />
               )}
@@ -347,7 +381,33 @@ const NoticiaDetalle = () => {
           </motion.div>
         </div>
       </div>
-    </div>
+  </div>
+  {lightboxOpen && lightboxImages[lightboxIndex] && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+        <button
+          onClick={()=>setLightboxOpen(false)}
+          className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/60 p-2 rounded-full"
+          aria-label="Cerrar"
+        >✕</button>
+        <div className="max-w-5xl w-full px-6 flex flex-col items-center">
+          <img src={lightboxImages[lightboxIndex].url} alt="ampliada" className="max-h-[80vh] object-contain rounded shadow-lg" />
+          <div className="flex items-center justify-between w-full text-white mt-4">
+            <button
+              disabled={lightboxIndex===0}
+              onClick={()=>setLightboxIndex(i=>Math.max(0,i-1))}
+              className="px-4 py-2 bg-black/50 rounded disabled:opacity-30"
+            >Anterior</button>
+            <span className="text-sm">{lightboxIndex+1} / {lightboxImages.length}</span>
+            <button
+              disabled={lightboxIndex===lightboxImages.length-1}
+              onClick={()=>setLightboxIndex(i=>Math.min(lightboxImages.length-1,i+1))}
+              className="px-4 py-2 bg-black/50 rounded disabled:opacity-30"
+            >Siguiente</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

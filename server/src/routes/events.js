@@ -57,13 +57,21 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+function toOffsetISO(dateStr){
+  if(!dateStr) return null;
+  // Asumir dateStr formato YYYY-MM-DD; devolver ISO con 00:00:00 en UTC-04:00
+  if(/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr+'T00:00:00-04:00';
+  return dateStr; // si ya viene con tiempo o zona la dejamos
+}
+
 // CREAR EVENTO
 router.post('/', authenticateToken, async (req, res) => {
   try {
   const errors = validateEventPayload(req.body);
   if (errors.length) return R.fail(res, 'Datos inválidos', 422, { errors });
 
-    const { titulo, descripcion, fecha_evento, hora_inicio, hora_fin, ubicacion, color = '#3B82F6', tipo = 'evento', estado = 'activo' } = req.body;
+    let { titulo, descripcion, fecha_evento, hora_inicio, hora_fin, ubicacion, color = '#3B82F6', tipo = 'evento', estado = 'activo' } = req.body;
+    fecha_evento = toOffsetISO(fecha_evento);
 
     const result = await db.query(`
       INSERT INTO eventos (titulo, descripcion, fecha_evento, hora_inicio, hora_fin, ubicacion, color, tipo, estado, creado_por)
@@ -103,7 +111,11 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const sets = [];
     const params = [];
     fields.forEach(f => {
-      if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f] || null); }
+      if (req.body[f] !== undefined) {
+        let val = req.body[f];
+        if(f==='fecha_evento') val = toOffsetISO(val);
+        sets.push(`${f} = ?`); params.push(val || null);
+      }
     });
 
   if (!sets.length) return R.fail(res, 'No hay cambios para aplicar', 400);

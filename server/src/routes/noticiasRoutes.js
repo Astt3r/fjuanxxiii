@@ -223,11 +223,13 @@ router.put('/:id', authenticateToken, async (req,res)=>{
   const connection = await pool.getConnection();
   try {
     const { id }=req.params;
-    const { titulo, slug, resumen, contenido, categoria, estado, destacado, fecha_publicacion, imagen_url } = req.body;
+    let { titulo, slug, resumen, contenido, categoria, estado, destacado, fecha_publicacion, imagen_url } = req.body;
     if(!titulo || !contenido){ connection.release(); return R.fail(res,'Título y contenido obligatorios',400); }
     const ex = await db.query('SELECT autor_id FROM noticias WHERE id=?',[id]);
     if(!ex.length){ connection.release(); return R.fail(res,'Noticia no encontrada',404); }
     if(!['admin','propietario'].includes(req.user.rol) && ex[0].autor_id!==req.user.id){ connection.release(); return R.fail(res,'Sin permisos',403); }
+    if(!slug) slug = buildSlug(titulo);
+    // Sanitizar contenido
     const clean = sanitizeHtml(contenido, {
       allowedTags: ['p','h1','h2','h3','h4','h5','h6','strong','em','ul','ol','li','a','img','figure','figcaption','blockquote','code','pre','br','span'],
       allowedAttributes: { a:['href','title','target','rel'], img:['src','alt','width','height'] },
@@ -238,9 +240,22 @@ router.put('/:id', authenticateToken, async (req,res)=>{
       }
     });
     await connection.beginTransaction();
-    await connection.execute('UPDATE noticias SET titulo=?, slug=?, resumen=?, contenido=?, categoria=?, estado=?, destacado=?, fecha_publicacion=?, imagen=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',[
-      titulo, slug, resumen||null, clean, categoria||null, estado||'borrador', destacado||false, fecha_publicacion||null, imagen_url||null, id
-    ]);
+    // Construir update dinámico (no sobreescribir imagen si no se envía)
+    let updateSet = 'titulo=?, slug=?, resumen=?, contenido=?, categoria=?, estado=?, destacado=?, fecha_publicacion=?';
+    const params = [ titulo, slug, resumen||null, clean, categoria||null, estado||'borrador', destacado||false, fecha_publicacion||null ];
+    if(typeof imagen_url !== 'undefined') { updateSet += ', imagen=?'; params.push(imagen_url||null); }
+    updateSet += ', updated_at=CURRENT_TIMESTAMP';
+    params.push(id);
+    try {
+      await connection.execute(`UPDATE noticias SET ${updateSet} WHERE id=?`, params);
+    } catch(dbErr){
+      if(dbErr.code==='ER_DUP_ENTRY'){
+        slug = await ensureUniqueSlug(slug);
+        params[1] = slug; // actualizar slug en params
+        await connection.execute(`UPDATE noticias SET ${updateSet} WHERE id=?`, params);
+      } else throw dbErr;
+    }
+    // Insertar referencias de imágenes embebidas nuevas
     const urls = extractContentImageUrls(clean);
     if(urls.length){
       const [rowMax] = await connection.execute('SELECT IFNULL(MAX(orden),0) AS m FROM noticias_imagenes WHERE noticia_id=? FOR UPDATE',[id]);
@@ -251,12 +266,12 @@ router.put('/:id', authenticateToken, async (req,res)=>{
         const filename=path.basename(url);
         try { await connection.execute('INSERT IGNORE INTO noticias_imagenes (noticia_id, filename, original_name, url, tamano, tipo_mime, orden) VALUES (?,?,?,?,NULL,NULL,?)',[id, filename, filename, url, base+idx+1]); } catch(_){ }
       }
-      if(!imagen_url && primera) await connection.execute('UPDATE noticias SET imagen=? WHERE id=? AND imagen IS NULL',[primera,id]);
+      if(typeof imagen_url === 'undefined' && primera) await connection.execute('UPDATE noticias SET imagen=? WHERE id=? AND imagen IS NULL',[primera,id]);
     }
     await connection.commit();
     connection.release();
     const imagenes = await db.query('SELECT id, filename, url, orden FROM noticias_imagenes WHERE noticia_id=? ORDER BY orden, id',[id]);
-    R.ok(res,{ updated:true, imagenes });
+    R.ok(res,{ updated:true, slug, imagenes });
   } catch(e){ try { await connection.rollback(); } catch(_){} connection.release(); console.error(e); R.fail(res,'Error al actualizar',500,{error:e.message}); }
 });
 

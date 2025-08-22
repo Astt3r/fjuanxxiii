@@ -137,22 +137,22 @@ export const apiUtils = {
 
   // Función para extraer datos de respuesta
   extractData: (response) => {
-    console.log('extractData: respuesta completa:', response);
+  if(process.env.NODE_ENV==='development') console.log('extractData: respuesta completa:', response);
     
     // Si la respuesta tiene una estructura success/data
     if (response?.data?.success && response?.data?.data) {
-      console.log('extractData: extrayendo de response.data.data:', response.data.data);
+  if(process.env.NODE_ENV==='development') console.log('extractData: extrayendo de response.data.data:', response.data.data);
       return response.data.data;
     }
     
     // Si la respuesta solo tiene data
     if (response?.data) {
-      console.log('extractData: extrayendo de response.data:', response.data);
+  if(process.env.NODE_ENV==='development') console.log('extractData: extrayendo de response.data:', response.data);
       return response.data;
     }
     
     // Si no hay estructura específica, devolver la respuesta tal como está
-    console.log('extractData: devolviendo respuesta tal como está:', response);
+  if(process.env.NODE_ENV==='development') console.log('extractData: devolviendo respuesta tal como está:', response);
     return response;
   },
 
@@ -408,7 +408,7 @@ export const noticiasApi = {
     try {
       const fd = new FormData();
   files.forEach(f => fd.append('imagenes', f));
-  console.log('[uploadImages] enviando', files.length, 'archivos al id', id, 'field: imagenes');
+  if(process.env.NODE_ENV==='development') console.log('[uploadImages] enviando', files.length, 'archivos al id', id, 'field: imagenes');
   const response = await api.post(`/noticias/${id}/imagenes`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       return apiUtils.extractData(response);
     } catch (error) {
