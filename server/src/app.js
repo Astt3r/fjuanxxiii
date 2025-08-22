@@ -103,11 +103,18 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
 
 // Rutas principales
 // Rate limit específico para auth (más estricto)
+// Ajustado: solo cuenta intentos fallidos (status >= 400) para no penalizar logins válidos o /me
+// Si se excede, devolvemos mensaje claro. Se puede ajustar LIMIT_AUTH en .env.
 const authLimiter = rateLimit({
-  windowMs: 15*60*1000,
-  limit: 10,
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  limit: parseInt(process.env.AUTH_RATE_LIMIT || '10', 10),
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // no contar respuestas < 400
+  message: {
+    error: 'Demasiados intentos fallidos de autenticación. Intenta de nuevo en unos minutos.'
+  },
+  // keyGenerator: (req, res) => req.ip // mantener por IP (no por email para evitar enumeración)
 });
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);

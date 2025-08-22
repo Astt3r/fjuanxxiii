@@ -302,15 +302,15 @@ router.post('/:id/imagenes', authenticateToken, (req,res,next)=>{
     if(!['admin','propietario'].includes(req.user.rol) && ex[0].autor_id!==req.user.id){ connection.release(); return R.fail(res,'Sin permisos para subir imágenes',403); }
     const files = req.files || [];
     if(!files.length){ connection.release(); return R.fail(res,'No se enviaron imágenes',400); }
-    if(files.length>12){ connection.release(); return R.fail(res,'Máximo 12 imágenes por lote',400); }
+  if(files.length>9){ connection.release(); return R.fail(res,'Máximo 9 imágenes por lote',400); }
 
     // Límite acumulado (máximo 12 totales)
     const actuales = await db.query('SELECT COUNT(*) AS c FROM noticias_imagenes WHERE noticia_id=?',[id]);
     const totalPost = actuales[0].c + files.length;
-    if(totalPost>12){
+    if(totalPost>9){
       for(const f of files){ try { fs.unlinkSync(path.join(__dirname,'../../uploads/noticias/imagenes',f.filename)); } catch(_){} }
       connection.release();
-      return R.fail(res,`Se excede el máximo de 12 imágenes (actuales: ${actuales[0].c}, nuevas: ${files.length})`,400);
+      return R.fail(res,`Se excede el máximo de 9 imágenes (actuales: ${actuales[0].c}, nuevas: ${files.length})`,400);
     }
 
     // Validar dimensiones mínimas (configurables vía env MIN_IMAGE_WIDTH / MIN_IMAGE_HEIGHT)

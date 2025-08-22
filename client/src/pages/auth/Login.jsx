@@ -31,19 +31,24 @@ const Login = () => {
   } = useForm();
 
   const onSubmit = async (data) => {
+    if (isLoading) return; // proteger doble click
     console.log('Login form: Iniciando submit con datos:', data);
     setIsLoading(true);
     try {
       console.log('Login form: Llamando a login...');
       const result = await login(data);
       console.log('Login form: Login completado, resultado:', result);
-      // La navegación se maneja en useEffect cuando isAuthenticated cambie
+      // Navegación en useEffect
     } catch (error) {
       console.error('Login form: Error en login:', error);
+      const msg = error.message || 'Error al iniciar sesión';
       setError('email', { 
         type: 'server', 
-        message: error.message 
+        message: msg
       });
+      if (msg.toLowerCase().includes('demasiad') || msg.includes('429')) {
+        toast.error(msg + ' Espera antes de otro intento.');
+      }
     } finally {
       setIsLoading(false);
     }

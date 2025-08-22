@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import API_CONFIG from '../../config/api';
 import {
   CalendarIcon,
   ClockIcon,
@@ -39,14 +40,16 @@ const EditarEvento = () => {
     const loadEvento = async () => {
       try {
         setLoadingData(true);
-        const response = await fetch(`http://localhost:5002/api/events/${id}`, {
+        const response = await fetch(`${API_CONFIG.getEventsURL()}/${id}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
-        
-        if (response.ok) {
-          const evento = await response.json();
+
+        const json = await response.json().catch(() => null);
+
+        if (response.ok && json) {
+          const evento = json.data || json; // backend usa { success, data }
           setFormData({
             titulo: evento.titulo || '',
             descripcion: evento.descripcion || '',
@@ -59,7 +62,8 @@ const EditarEvento = () => {
             estado: evento.estado || 'activo'
           });
         } else {
-          toast.error('Error al cargar el evento');
+          const msg = json?.message || 'Error al cargar el evento';
+          toast.error(msg);
           navigate('/dashboard/contenido');
         }
       } catch (error) {
@@ -123,7 +127,7 @@ const EditarEvento = () => {
     setLoading(true);
     
     try {
-      const response = await fetch(`http://localhost:5002/api/events/${id}`, {
+      const response = await fetch(`${API_CONFIG.getEventsURL()}/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -132,12 +136,13 @@ const EditarEvento = () => {
         body: JSON.stringify(formData)
       });
 
+      const json = await response.json().catch(() => null);
       if (response.ok) {
         toast.success('Evento actualizado exitosamente');
         navigate('/dashboard/contenido');
       } else {
-        const error = await response.json();
-        toast.error(error.error || 'Error al actualizar el evento');
+        const msg = json?.message || json?.error || 'Error al actualizar el evento';
+        toast.error(msg);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -155,19 +160,20 @@ const EditarEvento = () => {
     setLoading(true);
     
     try {
-      const response = await fetch(`http://localhost:5002/api/events/${id}`, {
+      const response = await fetch(`${API_CONFIG.getEventsURL()}/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 
+      const json = await response.json().catch(() => null);
       if (response.ok) {
         toast.success('Evento eliminado exitosamente');
         navigate('/dashboard/contenido');
       } else {
-        const error = await response.json();
-        toast.error(error.error || 'Error al eliminar el evento');
+        const msg = json?.message || json?.error || 'Error al eliminar el evento';
+        toast.error(msg);
       }
     } catch (error) {
       console.error('Error:', error);

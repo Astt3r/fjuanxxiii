@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { noticiasApi } from '../../services/api';
+import { rewriteContentMedia, normalizeImagenesArray, buildMediaUrl } from '../../utils/media';
+import { isoWithOffsetHours, dateInputValueOffset } from '../../utils/time';
 import toast from 'react-hot-toast';
 import RichTextEditor from '../../components/common/RichTextEditor';
 import {
@@ -24,6 +26,8 @@ const CrearNoticiaAvanzada = () => {
   const [previewMode, setPreviewMode] = useState(false);
   // Eliminado activeTab no usado
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [currentTag, setCurrentTag] = useState('');
   const contentRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -37,7 +41,7 @@ const CrearNoticiaAvanzada = () => {
     tags: [],
     destacado: false,
     estado: 'borrador',
-    fechaPublicacion: new Date().toISOString().split('T')[0],
+  fechaPublicacion: dateInputValueOffset(-4),
     imagenPrincipal: '',
   galeria: [], // [{ tempId, file, previewUrl, serverUrl? }]
     metaDescripcion: '',
@@ -123,13 +127,27 @@ const CrearNoticiaAvanzada = () => {
   const loadNoticia = async () => {
     try {
       setLoading(true);
-      const response = await noticiasApi.getNoticia(id);
-      if (response.data) {
+      // Intentar autenticado (incluye borrador), fallback a público
+      let noticia = null;
+      try { noticia = await noticiasApi.getByIdAuth(id); } catch(e){ if(e.status!==403) noticia=null; }
+      if(!noticia){ try { noticia = await noticiasApi.getById(id); } catch(_){}}
+      if(noticia){
+        const normalizedImgs = Array.isArray(noticia.imagenes) ? normalizeImagenesArray(noticia.imagenes) : [];
         setFormData(prev => ({
           ...prev,
-          ...response.data,
-          fechaPublicacion: response.data.fechaPublicacion?.split('T')[0] || new Date().toISOString().split('T')[0]
+          titulo: noticia.titulo || '',
+          subtitulo: noticia.subtitulo || '',
+          resumen: noticia.resumen || '',
+          contenido: rewriteContentMedia(noticia.contenido || ''),
+          categoria: noticia.categoria || '',
+          destacado: !!noticia.destacado,
+          estado: noticia.estado || 'borrador',
+          imagenPrincipal: buildMediaUrl(noticia.imagen_url),
+          galeria: normalizedImgs.map(img => ({ id: img.id, url: img.url, orden: img.orden })),
+          fechaPublicacion: (noticia.fecha_publicacion || '').split('T')[0] || dateInputValueOffset(-4)
         }));
+      } else {
+        toast.error('No se pudo cargar la noticia');
       }
     } catch (error) {
       toast.error('Error al cargar la noticia');
@@ -209,8 +227,11 @@ const CrearNoticiaAvanzada = () => {
   const handleImageUpload = async (event) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
-  const newItems = files.map(f => ({ tempId: Date.now()+Math.random(), file: f, previewUrl: URL.createObjectURL(f), url: '' }));
+    const remainingSlots = 9 - formData.galeria.length;
+    const slice = files.slice(0, remainingSlots);
+    const newItems = slice.map(f => ({ tempId: Date.now()+Math.random(), file: f, previewUrl: URL.createObjectURL(f), url: '' }));
     setFormData(prev => ({ ...prev, galeria: [...prev.galeria, ...newItems] }));
+    event.target.value=''; // permite re-seleccionar mismas imágenes
   };
 
   // Manejar imagen principal
@@ -218,6 +239,8 @@ const CrearNoticiaAvanzada = () => {
     const file = event.target.files?.[0];
     if(!file) return;
     setFormData(prev => ({ ...prev, imagenPrincipal: URL.createObjectURL(file), imagenPrincipalFile: file }));
+    // Reset input para permitir re-seleccionar misma imagen si se elimina
+    event.target.value='';
   };
 
   // Guardar noticia
@@ -240,7 +263,8 @@ const CrearNoticiaAvanzada = () => {
         categoria: formData.categoria || null,
         estado,
         destacado: formData.destacado || false,
-        fecha_publicacion: estado === 'publicado' ? new Date().toISOString() : null
+  // Aseguramos publicación en UTC-04:00
+  fecha_publicacion: estado === 'publicado' ? isoWithOffsetHours(-4) : null
       };
 
       let noticiaId = id;
@@ -598,7 +622,7 @@ const CrearNoticiaAvanzada = () => {
               transition={{ delay: 0.2 }}
               className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
             >
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Imagen destacada</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center justify-between">Imagen destacada <span className="text-xs text-gray-500 font-normal">(máx 9 imágenes en galería)</span></h3>
               
               {/* Input para imagen principal */}
               <input
@@ -610,6 +634,7 @@ const CrearNoticiaAvanzada = () => {
               />
               
               <button
+                type="button"
                 onClick={() => document.getElementById('imagen-principal')?.click()}
                 className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-primary-400 transition-colors text-center mb-4"
               >
@@ -627,7 +652,8 @@ const CrearNoticiaAvanzada = () => {
                     className="w-full h-48 object-cover rounded-lg"
                   />
                   <button
-                    onClick={() => setFormData(prev => ({ ...prev, imagenPrincipal: '' }))}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, imagenPrincipal: '', imagenPrincipalFile: undefined }))}
                     className="mt-2 text-sm text-red-600 hover:text-red-800"
                   >
                     Eliminar imagen principal
@@ -648,12 +674,14 @@ const CrearNoticiaAvanzada = () => {
               />
               
               <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary-400 transition-colors text-center"
+                disabled={formData.galeria.length >= 9}
               >
                 <ArrowUpTrayIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-sm text-gray-600">
-                  Haz clic para subir imágenes adicionales
+                  {formData.galeria.length >= 9 ? 'Límite de 9 imágenes alcanzado' : 'Haz clic para subir imágenes adicionales'}
                 </p>
               </button>
 
@@ -661,18 +689,32 @@ const CrearNoticiaAvanzada = () => {
               {formData.galeria.length > 0 && (
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
                   {formData.galeria.map((imagen, idx) => (
-                    <div key={imagen.tempId || imagen.id || imagen.filename || `g-${idx}`} className="relative">
+                    <div key={imagen.tempId || imagen.id || imagen.filename || `g-${idx}`} className="relative group">
                       <img
+                        onClick={() => { setLightboxIndex(idx); setLightboxOpen(true); }}
                         src={imagen.previewUrl || imagen.url}
                         alt={imagen.alt || imagen.original_name || 'imagen'}
-                        className="w-full h-24 object-cover rounded-lg"
+                        className="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90"
                       />
                       <button
+                        type="button"
+                        onClick={async () => {
+                          // Si tiene id de server, establecer como destacada
+                          if(imagen.id){
+                            try { await noticiasApi.setFeatured(id || formData.noticiaIdDraft, imagen.id); toast.success('Imagen destacada actualizada'); setFormData(prev=>({...prev, imagenPrincipal: imagen.url })); } catch(e){ toast.error('Error al destacar'); }
+                          } else {
+                            toast('Sube primero la imagen (guardar borrador/publicar)');
+                          }
+                        }}
+                        className="absolute left-1 top-1 bg-black/40 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100"
+                      >Destacar</button>
+                      <button
+                        type="button"
                         onClick={() => setFormData(prev => ({
                           ...prev,
                           galeria: prev.galeria.filter((_, i) => i !== idx)
                         }))}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 opacity-0 group-hover:opacity-100"
                       >
                         <XMarkIcon className="h-3 w-3" />
                       </button>
@@ -835,6 +877,39 @@ const CrearNoticiaAvanzada = () => {
                   />
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {lightboxOpen && formData.galeria[lightboxIndex] && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="relative max-w-5xl w-full px-6">
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(false)}
+              className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-2"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+            <img
+              src={formData.galeria[lightboxIndex].previewUrl || formData.galeria[lightboxIndex].url}
+              alt="imagen ampliada"
+              className="max-h-[80vh] mx-auto rounded shadow-lg"
+            />
+            <div className="flex justify-between mt-4 text-white text-sm">
+              <button
+                type="button"
+                disabled={lightboxIndex===0}
+                onClick={() => setLightboxIndex(i => Math.max(0, i-1))}
+                className="px-3 py-2 bg-black/40 rounded disabled:opacity-30"
+              >Anterior</button>
+              <span>{lightboxIndex+1} / {formData.galeria.length}</span>
+              <button
+                type="button"
+                disabled={lightboxIndex===formData.galeria.length-1}
+                onClick={() => setLightboxIndex(i => Math.min(formData.galeria.length-1, i+1))}
+                className="px-3 py-2 bg-black/40 rounded disabled:opacity-30"
+              >Siguiente</button>
             </div>
           </div>
         </div>

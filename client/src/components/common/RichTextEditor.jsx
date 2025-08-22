@@ -197,6 +197,21 @@ const RichTextEditor = ({
           break;
       }
     }
+    // Permitir eliminar imagen seleccionada con Backspace/Delete si está enfocada
+    if(['Backspace','Delete'].includes(e.key)){
+      const sel = window.getSelection();
+      if(sel && sel.rangeCount){
+        const range = sel.getRangeAt(0);
+        const node = range.startContainer;
+        // Si la selección está dentro de una imagen
+        const img = node.nodeType===1 && node.tagName==='IMG' ? node : (node.parentElement && node.parentElement.tagName==='IMG' ? node.parentElement : null);
+        if(img){
+          e.preventDefault();
+          img.remove();
+          handleContentChange();
+        }
+      }
+    }
   };
 
   // Insertar tabla

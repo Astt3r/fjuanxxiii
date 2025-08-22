@@ -145,6 +145,15 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadUser();
+    // Heartbeat para mantener la sesión (cada 4 minutos) si el token sigue vigente
+    const interval = setInterval(async () => {
+      const token = localStorage.getItem('token');
+      if(!token) return;
+      try {
+        await authService.getCurrentUser(); // refresca último acceso server-side (si backend se ajusta en futuro)
+      } catch(_){ /* silencioso */ }
+    }, 240000); // 4 min
+    return () => clearInterval(interval);
   }, []);
 
   // Función de login

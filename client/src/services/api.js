@@ -115,6 +115,8 @@ export const apiUtils = {
       return 'No tienes permisos para acceder a este recurso';
     } else if (error.status === 404) {
       return 'El recurso solicitado no fue encontrado';
+    } else if (error.status === 429) {
+      return error.response?.data?.error || 'Demasiadas solicitudes. Espera un momento antes de reintentar';
     } else if (error.status === 422) {
       return error.response?.data?.errors ? 
         Object.values(error.response.data.errors).flat().join(', ') :
