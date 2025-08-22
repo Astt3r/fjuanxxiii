@@ -212,10 +212,6 @@ export const endpoints = {
     document: '/uploads/document',
     avatar: '/uploads/avatar',
   },
-  contact: {
-    send: '/contact/send',
-    newsletter: '/contact/newsletter',
-  },
   dashboard: {
     stats: '/dashboard/stats',
     recentActivity: '/dashboard/recent-activity',
