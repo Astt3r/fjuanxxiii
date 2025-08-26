@@ -165,13 +165,13 @@ const GestionarContenido = () => {
       id: 'noticias',
       name: 'Noticias',
       icon: NewspaperIcon,
-      count: stats.noticias.total
+      count: stats.totalNoticias
     },
     {
       id: 'eventos',
       name: 'Eventos',
       icon: CalendarIcon,
-      count: stats.eventos.total
+      count: stats.totalEvents
     }
   ];
 
