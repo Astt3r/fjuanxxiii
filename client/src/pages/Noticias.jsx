@@ -23,6 +23,9 @@ const Noticias = () => {
   });
   const [categorias, setCategorias] = useState([]);
   const [noticiasFiltradas, setNoticiasFiltradas] = useState([]);
+  // Paginación local
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 9; // 3 columnas * 3 filas
 
   useEffect(() => {
     cargarNoticias();
@@ -31,6 +34,7 @@ const Noticias = () => {
 
   useEffect(() => {
     aplicarFiltros();
+  setPage(1); // reset al cambiar filtros
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noticias, filtros]);
 
@@ -41,7 +45,15 @@ const Noticias = () => {
       console.log('Response noticias:', response); // Debug
       // Extraer datos si vienen en formato {success: true, data: [...]}
       const noticiasData = response?.data || response || [];
-      setNoticias(noticiasData);
+      // Filtrar solo publicadas (normalizando posibles variantes "publicado/publicada")
+      const normalizarEstado = (e) => (e || '').toString().toLowerCase();
+      const soloPublicadas = Array.isArray(noticiasData)
+        ? noticiasData.filter(n => {
+            const est = normalizarEstado(n?.estado);
+            return est === 'publicado' || est === 'publicada';
+          })
+        : [];
+      setNoticias(soloPublicadas);
     } catch (error) {
       console.error('Error al cargar noticias:', error);
       setNoticias([]);
@@ -98,6 +110,44 @@ const Noticias = () => {
     }
 
     setNoticiasFiltradas(noticiasFilt);
+  };
+
+  // Derivar paginación
+  const total = noticiasFiltradas.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageNoticias = noticiasFiltradas.slice(start, start + PAGE_SIZE);
+
+  useEffect(() => {
+    // Si por filtros se reduce el total y la página actual queda fuera, reajustar
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
+  const Pagination = ({ page, pageCount, onChange }) => {
+    if (pageCount <= 1) return null;
+    const go = (p) => {
+      const np = Math.min(Math.max(1, p), pageCount);
+      if (np !== page) onChange(np);
+    };
+    const windowSize = 5;
+    const startWin = Math.max(1, page - Math.floor(windowSize / 2));
+    const endWin = Math.min(pageCount, startWin + windowSize - 1);
+    const pages = Array.from({ length: endWin - startWin + 1 }, (_, i) => startWin + i);
+    return (
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-10">
+        <p className="text-sm text-gray-500">
+          Mostrando {total === 0 ? 0 : start + 1}-{Math.min(start + PAGE_SIZE, total)} de {total} noticias
+        </p>
+        <div className="flex items-center gap-1">
+          <button onClick={() => go(page - 1)} disabled={page === 1} className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50 disabled:opacity-50">Anterior</button>
+          {pages.map(p => (
+            <button key={p} onClick={() => go(p)} className={`px-3 py-1.5 text-sm rounded border hover:bg-gray-50 ${p === page ? 'bg-blue-600 text-white border-blue-600' : ''}`}>{p}</button>
+          ))}
+          <button onClick={() => go(page + 1)} disabled={page === pageCount} className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50 disabled:opacity-50">Siguiente</button>
+        </div>
+      </div>
+    );
   };
 
   const manejarCambioFiltro = (campo, valor) => {
@@ -269,7 +319,7 @@ const Noticias = () => {
           ) : (
             <AnimatePresence>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {noticiasFiltradas.map((noticia, index) => (
+                {pageNoticias.map((noticia, index) => (
                   <motion.article
                     key={noticia.id}
                     initial={{ opacity: 0, y: 30 }}
@@ -349,6 +399,7 @@ const Noticias = () => {
                   </motion.article>
                 ))}
               </div>
+              <Pagination page={currentPage} pageCount={pageCount} onChange={setPage} />
             </AnimatePresence>
           )}
         </div>

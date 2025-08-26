@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuth } from '../../context/AuthContext';
 import { useContentStats } from '../../hooks/useContentStats';
 import API_CONFIG from '../../config/api';
 import toast from 'react-hot-toast';
@@ -13,12 +12,55 @@ import {
   PencilIcon,
   TrashIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
   NewspaperIcon,
   ClockIcon,
   MapPinIcon,
-  UserGroupIcon
+  
 } from '@heroicons/react/24/outline';
+
+// Componente de paginación local (ventana de 5 páginas)
+const Pagination = ({ page, pageCount, onChange }) => {
+  const go = (p) => {
+    const np = Math.min(Math.max(1, p), pageCount);
+    if (np !== page) onChange(np);
+  };
+
+  const windowSize = 5;
+  const start = Math.max(1, page - Math.floor(windowSize / 2));
+  const end = Math.min(pageCount, start + windowSize - 1);
+  const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-t border-gray-200 text-sm">
+      <div className="text-gray-500">Página {page} de {pageCount}</div>
+      <div className="flex items-center justify-end gap-1">
+        <button
+          onClick={() => go(page - 1)}
+          className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50 disabled:opacity-50"
+          disabled={page === 1}
+        >
+          Anterior
+        </button>
+        {pages.map((p) => (
+          <button
+            key={p}
+            onClick={() => go(p)}
+            className={`px-3 py-1.5 text-sm rounded border hover:bg-gray-50 ${p === page ? 'bg-primary-600 text-white border-primary-600' : ''}`}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          onClick={() => go(page + 1)}
+          className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50 disabled:opacity-50"
+          disabled={page === pageCount}
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Datos de ejemplo para eventos (hasta que esté lista la API)
 const eventosEjemplo = [
@@ -61,7 +103,6 @@ const eventosEjemplo = [
 ];
 
 const GestionarContenido = () => {
-  const { user } = useAuth();
   const { stats, refreshStats } = useContentStats();
   const [activeTab, setActiveTab] = useState('noticias');
   const [noticias, setNoticias] = useState([]);
@@ -69,6 +110,49 @@ const GestionarContenido = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
+  // Paginación local
+  const [pageNews, setPageNews] = useState(1);
+  const [pageEvents, setPageEvents] = useState(1);
+  const PAGE_SIZE_NEWS = 10; // filas por página (tabla noticias)
+  const PAGE_SIZE_EVENTS = 9; // cards por página (3x3 eventos)
+  
+  // Equivalencias de estados para manejar posibles variaciones desde backend
+  const estadoEquivalencias = {
+    publicado: ['publicado', 'publicada'],
+    borrador: ['borrador', 'draft', 'pendiente'],
+    activo: ['activo', 'activa'],
+    programado: ['programado', 'scheduled'],
+    cancelado: ['cancelado', 'cancelada']
+  };
+  
+  // Opciones de estado según pestaña activa
+  const statusOptionsNoticias = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'publicado', label: 'Publicado' },
+    { value: 'borrador', label: 'Borrador' }
+  ];
+  const statusOptionsEventos = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'activo', label: 'Activo' },
+    { value: 'programado', label: 'Programado' },
+    { value: 'cancelado', label: 'Cancelado' }
+  ];
+
+  // Helper para normalizar el estado de una noticia (maneja distintas formas del backend)
+  const getEstadoNoticia = (n) => {
+    if (!n) return 'borrador';
+    const raw = (
+      n.estado ||
+      n.status ||
+      n.estado_publicacion ||
+      (n.publicado === true ? 'publicado' : undefined) ||
+      (n.borrador === true ? 'borrador' : undefined) ||
+      ''
+    ).toString().toLowerCase();
+    if (estadoEquivalencias.publicado.includes(raw)) return 'publicado';
+    if (estadoEquivalencias.borrador.includes(raw)) return 'borrador';
+    return raw || 'borrador';
+  };
   
   // Estados para modales
   const [showViewModal, setShowViewModal] = useState(false);
@@ -94,15 +178,36 @@ const GestionarContenido = () => {
   const loadNoticias = async () => {
     try {
       setLoading(true);
-      const response = await fetch(API_CONFIG.getNoticiasURL());
+      const token = localStorage.getItem('token');
+      let urlBase = API_CONFIG.getNoticiasURL();
+      let useAdmin = false;
+      if(token){
+        // Intentar endpoint admin que incluye borradores
+        urlBase = `${API_CONFIG.baseURL}/noticias/admin/list`;
+        useAdmin = true;
+      }
+      const response = await fetch(`${urlBase}?limite=500&pagina=1`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       if (response.ok) {
         const result = await response.json();
-        // La API devuelve { success: true, data: [...] }
-        const noticiasData = result.data || [];
+        const noticiasData = result.data || result; // admin devuelve array simple
         setNoticias(Array.isArray(noticiasData) ? noticiasData : []);
       } else {
-        console.error('Error al cargar noticias:', response.statusText);
-        throw new Error('Error en la respuesta del servidor');
+        if(useAdmin && response.status === 401){
+          // Reintentar público
+          const pub = await fetch(`${API_CONFIG.getNoticiasURL()}?limite=500&pagina=1`);
+          if(pub.ok){
+            const r=await pub.json();
+            const noticiasData = r.data || [];
+            setNoticias(Array.isArray(noticiasData) ? noticiasData : []);
+          } else {
+            throw new Error('Error al cargar noticias públicas');
+          }
+        } else {
+          console.error('Error al cargar noticias:', response.statusText);
+          throw new Error('Error en la respuesta del servidor');
+        }
       }
       refreshStats(); // Actualizar estadísticas
     } catch (error) {
@@ -253,6 +358,18 @@ const GestionarContenido = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // Resetear página cuando cambian filtros o búsqueda
+  useEffect(() => {
+    setPageNews(1);
+    setPageEvents(1);
+  }, [searchTerm, filterStatus]);
+
+  // Al cambiar de pestaña, reiniciar filtros de estado y búsqueda
+  useEffect(() => {
+    setFilterStatus('todos');
+    setSearchTerm('');
+  }, [activeTab]);
+
   const getStatusBadge = (estado) => {
     const statusConfig = {
       publicado: { bg: 'bg-green-100', text: 'text-green-800', label: 'Publicado' },
@@ -323,19 +440,42 @@ const GestionarContenido = () => {
     return timeString;
   };
 
+  const normalizarEstado = (valor) => (valor || '').toLowerCase();
+
+  const estadoCoincide = (filtro, estadoItem) => {
+    if (filtro === 'todos') return true;
+    const estadoNorm = normalizarEstado(estadoItem);
+    const equivalencias = estadoEquivalencias[filtro];
+    if (equivalencias) return equivalencias.includes(estadoNorm);
+    return filtro === estadoNorm; // fallback
+  };
+
   const filteredNoticias = noticias.filter(noticia => {
     if (!noticia || !noticia.titulo) return false;
+    const estadoNorm = getEstadoNoticia(noticia);
     const matchesSearch = noticia.titulo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'todos' || noticia.estado === filterStatus;
+    const matchesFilter = estadoCoincide(filterStatus, estadoNorm);
     return matchesSearch && matchesFilter;
   });
 
   const filteredEventos = eventos.filter(evento => {
     if (!evento || !evento.titulo) return false;
     const matchesSearch = evento.titulo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'todos' || evento.estado === filterStatus;
+    const matchesFilter = estadoCoincide(filterStatus, evento.estado);
     return matchesSearch && matchesFilter;
   });
+
+  // Noticias paginadas (local)
+  const totalNews = filteredNoticias.length;
+  const pageCountNews = Math.max(1, Math.ceil(totalNews / PAGE_SIZE_NEWS));
+  const startNews = (pageNews - 1) * PAGE_SIZE_NEWS;
+  const pageNoticias = filteredNoticias.slice(startNews, startNews + PAGE_SIZE_NEWS);
+
+  // Eventos paginados
+  const totalEvents = filteredEventos.length;
+  const pageCountEvents = Math.max(1, Math.ceil(totalEvents / PAGE_SIZE_EVENTS));
+  const startEvents = (pageEvents - 1) * PAGE_SIZE_EVENTS;
+  const pageEventos = filteredEventos.slice(startEvents, startEvents + PAGE_SIZE_EVENTS);
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
@@ -393,10 +533,9 @@ const GestionarContenido = () => {
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
-                  <option value="todos">Todos</option>
-                  <option value="publicado">Publicado</option>
-                  <option value="activo">Activo</option>
-                  <option value="borrador">Borrador</option>
+                  {(activeTab === 'noticias' ? statusOptionsNoticias : statusOptionsEventos).map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -453,87 +592,93 @@ const GestionarContenido = () => {
                   </Link>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 table-fixed">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        {/* Ajustes de ancho: título puede envolver y autor más compacto */}
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
-                          Título
-                        </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                          Autor
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
-                          Fecha
-                        </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                          Estado
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredNoticias.map((noticia) => (
-                        <tr key={noticia.id} className="hover:bg-gray-50 align-top">
-                          <td className="px-4 py-4 whitespace-normal break-words">
-                            <div className="flex items-start">
-                              <div className="min-w-0">
-                                <div className="text-sm font-medium text-gray-900 line-clamp-2 break-words">
-                                  {noticia.titulo}
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {noticia.categoria}
-                                </div>
-                              </div>
-                              {noticia.destacado && (
-                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 shrink-0">
-                                  Destacado
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <span className="block truncate max-w-[7rem]" title={noticia.autor}>{noticia.autor}</span>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(noticia.fecha_publicacion || noticia.created_at)}
-                          </td>
-                          <td className="px-3 py-4 whitespace-nowrap">
-                            {getStatusBadge(noticia.estado)}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex items-center justify-end space-x-2">
-                              <button
-                                onClick={() => handleView(noticia, 'noticia')}
-                                className="text-gray-400 hover:text-gray-600"
-                                title="Ver"
-                              >
-                                <EyeIcon className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleEdit(noticia, 'noticia')}
-                                className="text-indigo-600 hover:text-indigo-900"
-                                title="Editar"
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(noticia, 'noticia')}
-                                className="text-red-600 hover:text-red-900"
-                                title="Eliminar"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {/* Ajustes de ancho: título puede envolver y autor más compacto */}
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                            Título
+                          </th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                            Autor
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
+                            Fecha
+                          </th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                            Estado
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                            Acciones
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {/* Paginación aplicada: usar pageNoticias */}
+                        {pageNoticias.map((noticia) => {
+                          const estadoNorm = getEstadoNoticia(noticia);
+                          return (
+                          <tr key={noticia.id} className="hover:bg-gray-50 align-top">
+                            <td className="px-4 py-4 whitespace-normal break-words">
+                              <div className="flex items-start">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-gray-900 line-clamp-2 break-words">
+                                    {noticia.titulo}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {noticia.categoria}
+                                  </div>
+                                </div>
+                                {noticia.destacado && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 shrink-0">
+                                    Destacado
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <span className="block truncate max-w-[7rem]" title={noticia.autor}>{noticia.autor}</span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatDate(noticia.fecha_publicacion || noticia.created_at)}
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap">
+                              {getStatusBadge(estadoNorm)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex items-center justify-end space-x-2">
+                                <button
+                                  onClick={() => handleView(noticia, 'noticia')}
+                                  className="text-gray-400 hover:text-gray-600"
+                                  title="Ver"
+                                >
+                                  <EyeIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleEdit(noticia, 'noticia')}
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                  title="Editar"
+                                >
+                                  <PencilIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(noticia, 'noticia')}
+                                  className="text-red-600 hover:text-red-900"
+                                  title="Eliminar"
+                                >
+                                  <TrashIcon className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );})}
+                      </tbody>
+                    </table>
+                  </div>
+                  <Pagination page={pageNews} pageCount={pageCountNews} onChange={setPageNews} />
+                </>
               )}
             </div>
           )}
@@ -558,69 +703,73 @@ const GestionarContenido = () => {
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
-                  {filteredEventos.map((evento) => (
-                    <motion.div
-                      key={evento.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                      style={{ borderLeftColor: evento.color, borderLeftWidth: '4px' }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-lg font-medium text-gray-900 line-clamp-2">
-                          {evento.titulo}
-                        </h3>
-                        {getStatusBadge(evento.estado)}
-                      </div>
-                      
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                        {evento.descripcion}
-                      </p>
-
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center text-sm text-gray-500">
-                          <ClockIcon className="h-4 w-4 mr-2" />
-                          {formatDate(evento.fechaInicio)} a las {formatTime(evento.horaInicio)}
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
+                    {/* Paginación aplicada: usar pageEventos */}
+                    {pageEventos.map((evento) => (
+                      <motion.div
+                        key={evento.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                        style={{ borderLeftColor: evento.color, borderLeftWidth: '4px' }}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <h3 className="text-lg font-medium text-gray-900 line-clamp-2">
+                            {evento.titulo}
+                          </h3>
+                          {getStatusBadge(evento.estado)}
                         </div>
-                        {evento.ubicacion && (
-                          <div className="flex items-center text-sm text-gray-500">
-                            <MapPinIcon className="h-4 w-4 mr-2" />
-                            {evento.ubicacion}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        {getTipoEventoBadge(evento.tipoEvento)}
                         
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleView(evento, 'evento')}
-                            className="text-gray-400 hover:text-gray-600"
-                            title="Ver evento"
-                          >
-                            <EyeIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(evento, 'evento')}
-                            className="text-indigo-600 hover:text-indigo-900"
-                            title="Editar evento"
-                          >
-                            <PencilIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(evento, 'evento')}
-                            className="text-red-600 hover:text-red-900"
-                            title="Eliminar evento"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                          {evento.descripcion}
+                        </p>
+
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center text-sm text-gray-500">
+                            <ClockIcon className="h-4 w-4 mr-2" />
+                            {formatDate(evento.fechaInicio)} a las {formatTime(evento.horaInicio)}
+                          </div>
+                          {evento.ubicacion && (
+                            <div className="flex items-center text-sm text-gray-500">
+                              <MapPinIcon className="h-4 w-4 mr-2" />
+                              {evento.ubicacion}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+
+                        <div className="flex items-center justify-between">
+                          {getTipoEventoBadge(evento.tipoEvento)}
+                          
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleView(evento, 'evento')}
+                              className="text-gray-400 hover:text-gray-600"
+                              title="Ver evento"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleEdit(evento, 'evento')}
+                              className="text-indigo-600 hover:text-indigo-900"
+                              title="Editar evento"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(evento, 'evento')}
+                              className="text-red-600 hover:text-red-900"
+                              title="Eliminar evento"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                  <Pagination page={pageEvents} pageCount={pageCountEvents} onChange={setPageEvents} />
+                </>
               )}
             </div>
           )}
@@ -699,7 +848,25 @@ const GestionarContenido = () => {
                 )}
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
+              <div className="flex items-center gap-2">
+                <a
+                  href={itemType === 'noticia'
+                    ? `/noticias/${selectedItem.slug || selectedItem.id}`
+                    : `/eventos/${selectedItem.slug || selectedItem.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+                >
+                  Ver en sitio
+                </a>
+                <button
+                  onClick={() => handleEdit(selectedItem, itemType)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                >
+                  Editar
+                </button>
+              </div>
               <button
                 onClick={closeModals}
                 className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"

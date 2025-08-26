@@ -136,6 +136,25 @@ router.get('/detalle/:id', authenticateToken, async (req,res)=>{
 });
 
 // ---------------------------------------------------------------
+// Listado administrativo (incluye borradores) - requiere auth
+// ---------------------------------------------------------------
+router.get('/admin/list', authenticateToken, async (req,res)=>{
+  try {
+    const { estado, categoria, q, limite=500, pagina=1 } = req.query;
+    let sql = `SELECT ${BASE_FIELDS}, u.nombre as autor FROM noticias n LEFT JOIN usuarios u ON n.autor_id=u.id WHERE 1=1`;
+    const params = [];
+    if(estado) { sql+=' AND n.estado=?'; params.push(estado); }
+    if(categoria){ sql+=' AND n.categoria=?'; params.push(categoria); }
+    if(q){ sql+=' AND (n.titulo LIKE ? OR n.resumen LIKE ?)'; params.push('%'+q+'%','%'+q+'%'); }
+    sql+=' ORDER BY n.created_at DESC';
+    const l = parseInt(limite); const p = parseInt(pagina);
+    if(l){ sql+=' LIMIT ? OFFSET ?'; params.push(l,(p-1)*l); }
+    const rows = await db.query(sql, params);
+    R.ok(res, rows);
+  } catch(e){ console.error(e); R.fail(res,'Error al obtener listado administrativo',500,{error:e.message}); }
+});
+
+// ---------------------------------------------------------------
 // Noticias destacadas (debe ir antes de '/:id' para no colisionar)
 // ---------------------------------------------------------------
 router.get('/featured', async (_req,res)=>{
