@@ -18,19 +18,58 @@ import {
 const RichTextEditor = ({ 
   value, 
   onChange, 
-  onImageUpload, // (file) => Promise<{ url }>
+  onImageUpload, // (file) => Promise<{ url, id?, width?, height?, variants? }>
+  onSetFeatured, // (mediaId | imageElement) => void (opcional)
   placeholder = "Comienza a escribir tu contenido aquí...",
   className = "",
   showToolbar = true,
   minHeight = "400px"
 }) => {
   const editorRef = useRef(null);
+  const savedRangeRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isEditorFocused, setIsEditorFocused] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#000000');
+  const [imgAlt, setImgAlt] = useState('');
+  const [requestAltFocus, setRequestAltFocus] = useState(false); // solicitar focus tras insertar
+  const altInputRef = useRef(null);
+
+  // Gestionar selección (para insertar siempre dentro del editor)
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount) {
+      try { savedRangeRef.current = sel.getRangeAt(0).cloneRange(); } catch(_){}
+    }
+  };
+  const restoreSelectionIntoEditor = () => {
+    if (!editorRef.current) return;
+    const sel = window.getSelection();
+    if (!sel) return;
+    sel.removeAllRanges();
+    const r = savedRangeRef.current;
+    if (r && editorRef.current.contains(r.commonAncestorContainer)) {
+      sel.addRange(r);
+    } else {
+      const end = document.createRange();
+      end.selectNodeContents(editorRef.current);
+      end.collapse(false);
+      sel.addRange(end);
+    }
+    editorRef.current.focus();
+  };
+
+  useEffect(() => {
+    if (requestAltFocus) {
+      // pequeño timeout para asegurar render
+      setTimeout(() => {
+        altInputRef.current?.focus();
+      }, 30);
+      setRequestAltFocus(false);
+    }
+  }, [requestAltFocus]);
 
   // Función simple para manejar cambios de contenido
   const handleContentChange = () => {
@@ -76,7 +115,12 @@ const RichTextEditor = ({
   const selectImage = (img) => {
     if(!editorRef.current) return;
     editorRef.current.querySelectorAll('img.rte-selected').forEach(i=>i.classList.remove('rte-selected'));
-    if(img){ img.classList.add('rte-selected'); }
+    if(img){
+      img.classList.add('rte-selected');
+      setImgAlt(img.getAttribute('alt') || '');
+    } else {
+      setImgAlt('');
+    }
   };
 
   const handleEditorClick = (e) => {
@@ -184,6 +228,8 @@ const RichTextEditor = ({
     }
     
     if (command === 'insertImage') {
+      // Guardar caret antes de abrir el selector de archivos
+      saveSelection();
       if (!onImageUpload) {
         alert('Subida de imágenes deshabilitada en este contexto');
         return;
@@ -223,51 +269,145 @@ const RichTextEditor = ({
   };
 
   // Manejar carga de imagen
-  const handleImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (file && onImageUpload) {
-      // Insertar placeholder temporal
-      const tempId = 'upl-'+Date.now()+Math.random();
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result;
-        const placeholder = `<figure data-temp="${tempId}" style="display:inline-block;position:relative;max-width:100%;margin:10px 0;">
-          <img src="${dataUrl}" alt="${file.name}" style="max-width:100%;height:auto;border-radius:8px;display:block;opacity:.55;filter:grayscale(45%);" />
-          <figcaption style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:500;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);">Subiendo...</figcaption>
+  // Función reutilizable para subir un archivo de imagen (input, pegado o DnD)
+  const uploadImageFile = async (file) => {
+    if (!file || !onImageUpload) return;
+
+    const tempId = 'upl-' + Date.now() + Math.random();
+    const reader = new FileReader();
+  reader.onload = () => {
+      const dataUrl = reader.result;
+      const placeholder = `
+        <figure data-temp="${tempId}" style="display:inline-block;position:relative;max-width:100%;margin:10px 0;">
+      <img src="${dataUrl}" alt="" style="max-width:100%;height:auto;border-radius:8px;display:block;opacity:.55;filter:grayscale(45%);" />
+      <figcaption style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:500;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);pointer-events:none;">Subiendo...</figcaption>
         </figure>`;
-        document.execCommand('insertHTML', false, placeholder);
-        handleContentChange();
-      };
-      reader.readAsDataURL(file);
-      try {
-        const result = await onImageUpload(file);
-        const imageUrl = result?.url;
-        if (!imageUrl) throw new Error('Respuesta de subida sin URL');
-        // Reemplazar placeholder
-        const editor = editorRef.current;
-        if(editor){
-          const ph = editor.querySelector(`figure[data-temp="${tempId}"]`);
-          if(ph){
-            ph.removeAttribute('data-temp');
-            const img = ph.querySelector('img');
-            const cap = ph.querySelector('figcaption');
-            if(cap) cap.remove();
-            if(img){
-              img.src=imageUrl;
-              img.style.opacity='1';
-              img.style.filter='none';
-              img.setAttribute('draggable','true');
-              selectImage(img);
+    // Asegurar inserción dentro del editor (respecta caret o al final)
+    restoreSelectionIntoEditor();
+    document.execCommand('insertHTML', false, placeholder);
+      handleContentChange();
+    };
+    reader.readAsDataURL(file);
+
+    const getNaturalSize = (src) => new Promise((resolve) => {
+      const im = new Image();
+      im.onload = () => resolve({ w: im.naturalWidth, h: im.naturalHeight });
+      im.onerror = () => resolve({ w: undefined, h: undefined });
+      im.src = src;
+    });
+
+    try {
+      const result = await onImageUpload(file);
+      const imageUrl = result?.url;
+      if (!imageUrl) throw new Error('Respuesta de subida sin URL');
+      const editor = editorRef.current;
+      if (editor) {
+        const ph = editor.querySelector(`figure[data-temp="${tempId}"]`);
+        if (ph) {
+          ph.removeAttribute('data-temp');
+          const img = ph.querySelector('img');
+          const capOverlay = ph.querySelector('figcaption');
+          if (capOverlay) capOverlay.remove();
+          if (img) {
+            img.src = imageUrl;
+            img.style.opacity = '1';
+            img.style.filter = 'none';
+            img.setAttribute('draggable', 'true');
+            // Feedback si falla la carga final
+            img.onerror = () => {
+              img.style.opacity = '.55';
+              img.style.filter = 'grayscale(45%)';
+              const figWrap = img.closest('figure');
+              if (figWrap && !figWrap.querySelector('.rte-error')) {
+                const err = document.createElement('figcaption');
+                err.className = 'rte-error';
+                Object.assign(err.style, {
+                  position: 'absolute', inset: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#fff', fontWeight: '600', background: 'rgba(0,0,0,.45)'
+                });
+                err.textContent = 'Error cargando la imagen';
+                figWrap.appendChild(err);
+              }
+            };
+            if (result?.id != null) img.setAttribute('data-media-id', String(result.id));
+            let w = result?.width; let h = result?.height;
+            if (!w || !h) { const nat = await getNaturalSize(imageUrl); w = w || nat.w; h = h || nat.h; }
+            if (w) img.setAttribute('width', String(w));
+            if (h) img.setAttribute('height', String(h));
+            img.setAttribute('loading', 'lazy');
+            img.setAttribute('decoding', 'async');
+            if (result?.variants?.md || result?.variants?.lg) {
+              const parts = []; parts.push(`${imageUrl} 640w`);
+              if (result.variants.md) parts.push(`${result.variants.md} 1024w`);
+              if (result.variants.lg) parts.push(`${result.variants.lg} 1600w`);
+              img.setAttribute('srcset', parts.join(', '));
+              img.setAttribute('sizes', '(max-width: 768px) 100vw, 768px');
             }
+            // Tamaño inicial razonable (60% ancho editor, sin exceder natural ni contenedor)
+            const containerW = editorRef.current?.clientWidth || 800;
+            const natW = Number(w) || containerW;
+            const initW = Math.min(natW, Math.round(containerW * 0.6));
+            if (!img.style.width) {
+              img.style.width = initW + 'px';
+              img.setAttribute('width', String(initW));
+            }
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.classList.add('rte-img');
+            const fig = img.closest('figure');
+            if (fig && !fig.querySelector('figcaption')) {
+              const cap = document.createElement('figcaption');
+              cap.contentEditable = 'true';
+              cap.style.fontSize = '0.875rem';
+              cap.style.color = '#6b7280';
+              fig.appendChild(cap);
+            }
+            selectImage(img);
+            // Pedir foco en el input ALT
+            setRequestAltFocus(true);
           }
-          handleContentChange();
         }
-      } catch (e) {
-        alert(e.message || 'Error al subir la imagen');
+        handleContentChange();
       }
+    } catch (e) {
+      alert(e?.message || 'Error al subir la imagen');
     }
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) { event.target.value=''; return; }
+    await uploadImageFile(file);
     event.target.value='';
   };
+
+  // Pegar imagen desde portapapeles
+  const handlePaste = async (e) => {
+    const items = e.clipboardData?.items || [];
+    for (const it of items) {
+      if (it.kind === 'file') {
+        const file = it.getAsFile();
+        if (file && file.type.startsWith('image/')) {
+          e.preventDefault();
+          await uploadImageFile(file);
+        }
+      }
+    }
+  };
+
+  // Arrastrar y soltar imagen
+  const handleDrop = async (e) => {
+    const files = e.dataTransfer?.files || [];
+    if (files.length) {
+      let consumed = false;
+      for (const file of files) {
+        if (file.type.startsWith('image/')) {
+          if (!consumed) { e.preventDefault(); consumed = true; }
+          await uploadImageFile(file);
+        }
+      }
+    }
+  };
+
 
   // Atajos de teclado
   const handleKeyDown = (e) => {
@@ -467,8 +607,55 @@ const RichTextEditor = ({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
   onClick={handleEditorClick}
+        onPaste={handlePaste}
+        onDrop={handleDrop}
         data-placeholder={placeholder}
       />
+
+      {/* Mini popover ALT + acciones sobre imagen seleccionada */}
+      {typeof document !== 'undefined' && editorRef.current?.querySelector('img.rte-selected') && (
+        <div className="absolute right-2 bottom-2 bg-white border rounded shadow p-2 flex flex-col gap-2 w-60 z-20">
+          <input
+            ref={altInputRef}
+            className="border px-2 py-1 text-sm rounded"
+            placeholder="Texto alternativo"
+            value={imgAlt}
+            onChange={(e) => setImgAlt(e.target.value)}
+            onBlur={() => {
+              const sel = editorRef.current?.querySelector('img.rte-selected');
+              if (sel) sel.setAttribute('alt', imgAlt.trim());
+              handleContentChange();
+            }}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 rounded px-2 py-1"
+              onMouseDown={(e)=>e.preventDefault()}
+              onClick={() => {
+                const sel = editorRef.current?.querySelector('img.rte-selected');
+                if(!sel) return;
+                const fig = sel.closest('figure');
+                if(fig){ fig.style.float = fig.style.float === 'right' ? '' : 'right'; }
+                handleContentChange();
+              }}
+            >Alinear der</button>
+            {onSetFeatured && (
+              <button
+                type="button"
+                className="flex-1 text-xs bg-yellow-100 hover:bg-yellow-200 rounded px-2 py-1"
+                onMouseDown={(e)=>e.preventDefault()}
+                title="Marcar como destacada"
+                onClick={() => {
+                  const sel = editorRef.current?.querySelector('img.rte-selected');
+                  const mediaId = sel?.getAttribute('data-media-id');
+                  if (onSetFeatured && (mediaId || sel)) onSetFeatured(mediaId || sel);
+                }}
+              >⭐ Destacar</button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Diálogo de enlace */}
       {showLinkDialog && (
@@ -549,7 +736,12 @@ const RichTextEditor = ({
       )}
     </div>
   );
+
+  
 };
+
+
+
 
 // Estilos CSS para forzar comportamiento LTR
 const editorStyles = `
@@ -569,6 +761,10 @@ const editorStyles = `
     direction: ltr !important;
     text-align: left !important;
   }
+  [contenteditable] figure { display:inline-block; max-width:100%; margin:10px 0; }
+  [contenteditable] figure>img { display:block; max-width:100%; height:auto; border-radius:8px; }
+  [contenteditable] figure>figcaption { font-size:.875rem; color:#6b7280; text-align:center; }
+  [contenteditable] img.rte-img { max-height:60vh; }
   img.rte-selected { outline:2px solid #2563eb; position:relative; }
   img.rte-selected::after { content:''; position:absolute; width:12px; height:12px; background:#2563eb; right:-6px; bottom:-6px; border-radius:2px; box-shadow:0 0 0 2px #fff; cursor:ew-resize; }
 `;
@@ -580,5 +776,7 @@ if (typeof document !== 'undefined' && !document.getElementById('rich-text-edito
   style.textContent = editorStyles;
   document.head.appendChild(style);
 }
+
+
 
 export default RichTextEditor;

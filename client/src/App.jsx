@@ -30,7 +30,6 @@ import Contacto from './pages/Contacto';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
-import CrearNoticia from './pages/dashboard/CrearNoticia';
 import CrearNoticiaAvanzada from './pages/dashboard/CrearNoticiaAvanzada';
 import CrearEvento from './pages/dashboard/CrearEvento';
 import EditarNoticia from './pages/dashboard/EditarNoticia';
@@ -99,14 +98,6 @@ function App() {
                       } 
                     />
                     <Route 
-                      path="/dashboard/contenido/crear-basico" 
-                      element={
-                        <ProtectedRoute>
-                          <CrearNoticia />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
                       path="/dashboard/contenido" 
                       element={
                         <ProtectedRoute>
@@ -127,14 +118,6 @@ function App() {
                       element={
                         <ProtectedRoute>
                           <EditarNoticia />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/dashboard/contenido/editar-basico/:id" 
-                      element={
-                        <ProtectedRoute>
-                          <CrearNoticia />
                         </ProtectedRoute>
                       } 
                     />

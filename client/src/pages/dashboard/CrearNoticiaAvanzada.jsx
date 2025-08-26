@@ -447,8 +447,15 @@ const CrearNoticiaAvanzada = () => {
                       }
                       const up = await noticiasApi.uploadImages(noticiaId, [file]);
                       const img = up?.imagenes?.slice(-1)[0];
-                      if(!img?.url) throw new Error('Subida sin URL');
-                      return { url: img.url };
+                      if(!img?.url || !img?.id) throw new Error('Subida sin datos completos');
+                      const absUrl = buildMediaUrl(img.url); // resolución absoluta: evita 404 en :3000
+                      return { 
+                        id: img.id, 
+                        url: absUrl, // usar absoluta en el editor
+                        width: img.width ?? img.ancho ?? undefined, 
+                        height: img.height ?? img.alto ?? undefined,
+                        variants: img.variants || img.variantes || null
+                      };
                     } catch(e){ toast.error(e.message || 'Error subiendo imagen'); throw e; }
                   }}
                   placeholder="Comienza a escribir el contenido de tu noticia..."
