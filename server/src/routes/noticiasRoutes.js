@@ -10,7 +10,7 @@ const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { uploadImage } = require('../config/multer');
 // (legacy inline sanitizeHtml removed in favor of central sanitize util)
-const sanitizeHtml = require('sanitize-html'); // kept only if other code paths still reference; will migrate to utils
+// const sanitizeHtml = require('sanitize-html'); // legacy (removed: not used after refactor)
 const { sanitize } = require('../utils/sanitize');
 const { reencodeToJpeg } = require('../utils/imageSanitizer');
 const { pool } = require('../config/database');
@@ -27,14 +27,14 @@ function extractContentImageUrls(html = '') {
   while((m = tagRe.exec(html)) !== null){
     let src = m[1];
     if(!src) continue;
-    try { if(/^https?:\/\//i.test(src)){ const u=new URL(src); src=u.pathname+(u.search||''); } } catch(_){ }
+  try { if(/^https?:\/\//i.test(src)){ const u=new URL(src); src=u.pathname+(u.search||''); } } catch { /* ignore URL parse */ }
     if(src.includes('/uploads/noticias/imagenes/')) set.add(src.split('?')[0]);
   }
   // Markdown ![]()
   const mdRe = /!\[[^\]]*\]\(([^)]+)\)/g;
   while((m = mdRe.exec(html)) !== null){
     let src = m[1].split(' ')[0].replace(/["')]/g,'')
-    try { if(/^https?:\/\//i.test(src)){ const u=new URL(src); src=u.pathname; } } catch(_){ }
+  try { if(/^https?:\/\//i.test(src)){ const u=new URL(src); src=u.pathname; } } catch { /* ignore URL parse */ }
     if(src.includes('/uploads/noticias/imagenes/')) set.add(src.split('?')[0]);
   }
   return Array.from(set);
@@ -213,14 +213,14 @@ router.post('/', authenticateToken, async (req,res)=>{
       const filename = path.basename(url);
       try {
         await connection.execute('INSERT IGNORE INTO noticias_imagenes (noticia_id, filename, original_name, url, tamano, tipo_mime, orden) VALUES (?,?,?,?,NULL,NULL,?)',[id, filename, filename, url, ordenBase+idx+1]);
-      } catch(_){ }
+  } catch { /* ignore duplicate image reference on create */ }
     }
     if(!imagen_url && primera) await connection.execute('UPDATE noticias SET imagen=? WHERE id=? AND imagen IS NULL',[primera,id]);
     await connection.commit();
     const imagenes = urls.length ? await db.query('SELECT id, filename, url, orden FROM noticias_imagenes WHERE noticia_id=? ORDER BY orden, id',[id]) : [];
     connection.release();
     R.created(res,{ id, titulo, slug, estado: estado||'borrador', imagen_url: imagen_url||primera||null, imagenes, original_slug: req.body.slug });
-  } catch(e){ try { await connection.rollback(); } catch(_){} connection.release(); console.error(e); R.fail(res,'Error al crear la noticia',500,{error:e.message}); }
+  } catch(e){ try { await connection.rollback(); } catch { /* ignore rollback error */ } connection.release(); console.error(e); R.fail(res,'Error al crear la noticia',500,{error:e.message}); }
 });
 
 router.put('/:id', authenticateToken, async (req,res)=>{
@@ -260,7 +260,7 @@ router.put('/:id', authenticateToken, async (req,res)=>{
       for(const [idx,url] of urls.entries()){
         if(!primera) primera=url;
         const filename=path.basename(url);
-        try { await connection.execute('INSERT IGNORE INTO noticias_imagenes (noticia_id, filename, original_name, url, tamano, tipo_mime, orden) VALUES (?,?,?,?,NULL,NULL,?)',[id, filename, filename, url, base+idx+1]); } catch(_){ }
+  try { await connection.execute('INSERT IGNORE INTO noticias_imagenes (noticia_id, filename, original_name, url, tamano, tipo_mime, orden) VALUES (?,?,?,?,NULL,NULL,?)',[id, filename, filename, url, base+idx+1]); } catch { /* ignore duplicate image reference on update */ }
       }
       if(typeof imagen_url === 'undefined' && primera) await connection.execute('UPDATE noticias SET imagen=? WHERE id=? AND imagen IS NULL',[primera,id]);
     }
@@ -268,7 +268,7 @@ router.put('/:id', authenticateToken, async (req,res)=>{
     connection.release();
     const imagenes = await db.query('SELECT id, filename, url, orden FROM noticias_imagenes WHERE noticia_id=? ORDER BY orden, id',[id]);
     R.ok(res,{ updated:true, slug, imagenes });
-  } catch(e){ try { await connection.rollback(); } catch(_){} connection.release(); console.error(e); R.fail(res,'Error al actualizar',500,{error:e.message}); }
+  } catch(e){ try { await connection.rollback(); } catch { /* ignore rollback error */ } connection.release(); console.error(e); R.fail(res,'Error al actualizar',500,{error:e.message}); }
 });
 
 router.delete('/:id', authenticateToken, async (req,res)=>{
@@ -306,10 +306,10 @@ router.post('/:id/imagenes', authenticateToken, (req,res,next)=>{
     try {
       if(Array.isArray(req.files)){
         for(const f of req.files){
-          try { await reencodeToJpeg(f.path); } catch(_e){ /* continuar con otras */ }
+          try { await reencodeToJpeg(f.path); } catch { /* continue with other images if re-encode fails */ }
         }
       }
-    } catch(_){ /* ignorar errores de reencode para no bloquear subida */ }
+  } catch { /* ignore reencode loop error */ }
     next();
   });
 }, async (req,res)=>{
@@ -327,7 +327,7 @@ router.post('/:id/imagenes', authenticateToken, (req,res,next)=>{
     const actuales = await db.query('SELECT COUNT(*) AS c FROM noticias_imagenes WHERE noticia_id=?',[id]);
     const totalPost = actuales[0].c + files.length;
     if(totalPost>9){
-      for(const f of files){ try { fs.unlinkSync(path.join(__dirname,'../../uploads/noticias/imagenes',f.filename)); } catch(_){} }
+  for(const f of files){ try { fs.unlinkSync(path.join(__dirname,'../../uploads/noticias/imagenes',f.filename)); } catch { /* ignore unlink error */ } }
       connection.release();
       return R.fail(res,`Se excede el máximo de 9 imágenes (actuales: ${actuales[0].c}, nuevas: ${files.length})`,400);
     }
@@ -350,13 +350,13 @@ router.post('/:id/imagenes', authenticateToken, (req,res,next)=>{
             meta = await sharp(f.path).metadata();
             resizedFiles.push({ file: f.originalname, width: meta.width, height: meta.height });
           } else {
-            for(const fx of files){ try { fs.unlinkSync(path.join(__dirname,'../../uploads/noticias/imagenes',fx.filename)); } catch(_){} }
+            for(const fx of files){ try { fs.unlinkSync(path.join(__dirname,'../../uploads/noticias/imagenes',fx.filename)); } catch { /* ignore unlink error */ } }
             connection.release();
             return R.fail(res,`La imagen ${f.originalname} no cumple dimensiones mínimas ${MIN_W}x${MIN_H}px`,400);
           }
         }
       } catch(err){
-        for(const fx of files){ try { fs.unlinkSync(path.join(__dirname,'../../uploads/noticias/imagenes',fx.filename)); } catch(_){} }
+  for(const fx of files){ try { fs.unlinkSync(path.join(__dirname,'../../uploads/noticias/imagenes',fx.filename)); } catch { /* ignore unlink error */ } }
         connection.release();
         return R.fail(res,`Error leyendo la imagen ${f.originalname}`,400,{error: err.message, file: f.originalname});
       }
@@ -380,7 +380,7 @@ router.post('/:id/imagenes', authenticateToken, (req,res,next)=>{
     const imagenes = await db.query('SELECT id, filename, url, orden FROM noticias_imagenes WHERE noticia_id=? ORDER BY orden, id',[id]);
   R.created(res,{ uploaded: inserted.length, imagenes, resized: resizedFiles });
   } catch(e){
-    try { await connection.rollback(); } catch(_){}
+  try { await connection.rollback(); } catch { /* ignore rollback error */ }
     connection.release();
     console.error('❌ Error al subir imágenes:', e);
     const detail = e && (e.sqlMessage || e.message || '');
@@ -459,7 +459,7 @@ router.post('/:id/sincronizar-imagenes', authenticateToken, async (req,res)=>{
       try {
         const r = await db.query('INSERT IGNORE INTO noticias_imagenes (noticia_id, filename, original_name, url, tamano, tipo_mime, orden) VALUES (?,?,?,?,NULL,NULL,(SELECT IFNULL(MAX(orden),0)+1 FROM noticias_imagenes WHERE noticia_id=?))',[id, filename, filename, url, id]);
         if(r.affectedRows) nuevas++;
-      } catch(_){ }
+  } catch { /* ignore duplicate insertion during sync */ }
     }
     await db.query('UPDATE noticias n SET imagen=(SELECT url FROM noticias_imagenes ni WHERE ni.noticia_id=n.id ORDER BY ni.orden, ni.id LIMIT 1) WHERE n.id=? AND n.imagen IS NULL',[id]);
     const imagenes=await db.query('SELECT id, filename, url, orden FROM noticias_imagenes WHERE noticia_id=? ORDER BY orden, id',[id]);
