@@ -28,11 +28,15 @@ const connectDB = async () => {
     await createTables();
   } catch (error) {
     console.error('❌ Error conectando a MySQL:', error.message);
-    if (process.env.ALLOW_START_WITHOUT_DB === 'true') {
-      console.warn('⚠️  ALLOW_START_WITHOUT_DB=true: el servidor continuará en modo degradado (consultas fallarán).');
-      return; // no process.exit
-    }
-    process.exit(1);
+   // En tests JAMÁS hacemos exit; y en dev puedes optar por modo degradado
+   if (
+     process.env.NODE_ENV === 'test' ||
+     process.env.ALLOW_START_WITHOUT_DB === 'true'
+   ) {
+     console.warn('⚠️  DB no disponible (test o ALLOW_START_WITHOUT_DB=true): el servidor continúa en modo degradado.');
+     return; // no process.exit
+   }
+   process.exit(1);
   }
 };
 

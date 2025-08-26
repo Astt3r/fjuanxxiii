@@ -1,5 +1,5 @@
 const request = require('supertest');
-let server;
+let app;
 
 beforeAll(() => {
   process.env.NODE_ENV = 'test';
@@ -10,19 +10,13 @@ beforeAll(() => {
   process.env.DB_PASSWORD = process.env.DB_PASSWORD || '';
   process.env.DB_PORT = process.env.DB_PORT || '3306';
 
-  server = require('../src/server');
+  app = require('../src/server');
 });
 
-afterAll((done) => {
-  if (server && server.close) {
-    server.close(done);
-  } else {
-    done();
-  }
-});
+afterAll((done) => { done(); });
 
 test('GET /api/health should respond with 200', async () => {
-  const res = await request(server).get('/api/health');
+  const res = await request(app).get('/api/health');
   expect(res.statusCode).toBe(200);
   expect(res.body).toBeDefined();
 });
