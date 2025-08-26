@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { requireRole } = require('../middleware/authz');
 const { createInvitation, listInvitations } = require('../services/invitationsService');
 
 // Crear invitación (solo admin)
-router.post('/', authenticateToken, requireAdmin, async (req,res) => {
+router.post('/', authenticateToken, requireRole('admin'), async (req,res) => {
   try {
     const { email=null, role='admin', expiresAt=null } = req.body || {};
     const inv = await createInvitation({ email, role, expiresAt, createdBy: req.user.id });
@@ -16,7 +17,7 @@ router.post('/', authenticateToken, requireAdmin, async (req,res) => {
 });
 
 // Listar invitaciones
-router.get('/', authenticateToken, requireAdmin, async (req,res)=>{
+router.get('/', authenticateToken, requireRole('admin'), async (req,res)=>{
   try {
     const page = parseInt(req.query.page||'1',10);
     const limit = Math.min(parseInt(req.query.limit||'20',10),100);

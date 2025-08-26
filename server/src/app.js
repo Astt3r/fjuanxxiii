@@ -125,8 +125,9 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/admin/invitations', adminInvitationsRoutes);
-// app.use('/api/protocols', protocolsRoutes);
-// app.use('/api/staff', staffRoutes);
+// Reactivamos endpoints de protocolos (archivos ahora viven en /uploads/protocolos)
+app.use('/api/protocols', protocolsRoutes);
+// app.use('/api/staff', staffRoutes); // mantener desactivado hasta que se requiera
 
 // Ruta de salud con comprobación de DB
 app.get('/api/health', async (req, res) => {

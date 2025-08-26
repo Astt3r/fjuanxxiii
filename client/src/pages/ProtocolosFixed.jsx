@@ -11,7 +11,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Bienestar Estudiantil",
     archivo: "protocolo-retencion-embarazadas.pdf",
     fechaActualizacion: "2025-08-01",
-    url: "/protocolos/protocolo-retencion-embarazadas.pdf"
+  url: "/uploads/protocolos/protocolo-retencion-embarazadas.pdf"
   },
   {
     id: 2,
@@ -20,7 +20,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Seguridad",
     archivo: "protocolo-accidentes-escolares.pdf",
     fechaActualizacion: "2025-04-09",
-    url: "/protocolos/protocolo-accidentes-escolares.pdf"
+  url: "/uploads/protocolos/protocolo-accidentes-escolares.pdf"
   },
   {
     id: 3,
@@ -29,7 +29,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Salud Mental",
     archivo: "protocolo-conducta-suicida.pdf",
     fechaActualizacion: "2025-08-01",
-    url: "/protocolos/protocolo-conducta-suicida.pdf"
+  url: "/uploads/protocolos/protocolo-conducta-suicida.pdf"
   },
   {
     id: 4,
@@ -38,7 +38,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Convivencia Escolar",
     archivo: "protocolo-maltrato-acoso.pdf",
     fechaActualizacion: "2025-08-01",
-    url: "/protocolos/protocolo-maltrato-acoso.pdf"
+  url: "/uploads/protocolos/protocolo-maltrato-acoso.pdf"
   },
   {
     id: 5,
@@ -47,7 +47,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Inclusión",
     archivo: "protocolo-estudiantes-trans.pdf",
     fechaActualizacion: "2025-08-01",
-    url: "/protocolos/protocolo-estudiantes-trans.pdf"
+  url: "/uploads/protocolos/protocolo-estudiantes-trans.pdf"
   },
   {
     id: 6,
@@ -56,7 +56,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Convivencia Escolar",
     archivo: "protocolo-ciberbullying.pdf",
     fechaActualizacion: "2025-04-09",
-    url: "/protocolos/protocolo-ciberbullying.pdf"
+  url: "/uploads/protocolos/protocolo-ciberbullying.pdf"
   },
   {
     id: 7,
@@ -65,7 +65,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Protección",
     archivo: "protocolo-agresiones-sexuales.pdf",
     fechaActualizacion: "2025-08-01",
-    url: "/protocolos/protocolo-agresiones-sexuales.pdf"
+  url: "/uploads/protocolos/protocolo-agresiones-sexuales.pdf"
   },
   {
     id: 8,
@@ -74,7 +74,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Prevención",
     archivo: "protocolo-alcohol-drogas.pdf",
     fechaActualizacion: "2025-08-01",
-    url: "/protocolos/protocolo-alcohol-drogas.pdf"
+  url: "/uploads/protocolos/protocolo-alcohol-drogas.pdf"
   },
   {
     id: 9,
@@ -83,7 +83,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Necesidades Educativas Especiales",
     archivo: "protocolo-tea.pdf",
     fechaActualizacion: "2025-08-01",
-    url: "/protocolos/protocolo-tea.pdf"
+  url: "/uploads/protocolos/protocolo-tea.pdf"
   },
   {
     id: 10,
@@ -92,7 +92,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Protección",
     archivo: "protocolo-vulneracion-derechos.pdf",
     fechaActualizacion: "2025-04-09",
-    url: "/protocolos/protocolo-vulneracion-derechos.pdf"
+  url: "/uploads/protocolos/protocolo-vulneracion-derechos.pdf"
   },
   {
     id: 11,
@@ -101,7 +101,7 @@ const PROTOCOLOS_DATA = [
     categoria: "Actividades Pedagógicas",
     archivo: "protocolo-salidas-pedagogicas.pdf",
     fechaActualizacion: "2025-08-01",
-    url: "/protocolos/protocolo-salidas-pedagogicas.pdf"
+  url: "/uploads/protocolos/protocolo-salidas-pedagogicas.pdf"
   }
 ];
 
@@ -143,12 +143,27 @@ const Protocolos = () => {
     return filtrados;
   }, [categoriaSeleccionada, busqueda]);
 
+  // Construye URL absoluta contra el backend si la ruta es relativa
+  const buildUrl = (u) => {
+    if (!u) return u;
+    if (/^https?:\/\//i.test(u)) return u;
+    // Si REACT_APP_API_URL está definido úsalo para host de archivos (quitando /api final si existe)
+    const api = process.env.REACT_APP_API_URL || '';
+    let origin = '';
+    if (api) {
+      try { const parsed = new URL(api); origin = parsed.origin + parsed.pathname.replace(/\/api\/?$/, ''); } catch(e) { origin = window.location.origin; }
+    } else {
+      origin = window.location.origin;
+    }
+    return origin.replace(/\/$/, '') + u;
+  };
+
   const descargarProtocolo = (protocolo) => {
-    window.open(protocolo.url, '_blank');
+    window.open(buildUrl(protocolo.url), '_blank');
   };
 
   const verProtocolo = (protocolo) => {
-    window.open(protocolo.url, '_blank');
+    window.open(buildUrl(protocolo.url), '_blank');
   };
 
   const getCategoriaColor = (categoria) => {

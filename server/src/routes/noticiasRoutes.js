@@ -9,7 +9,10 @@ const router = express.Router();
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { uploadImage } = require('../config/multer');
-const sanitizeHtml = require('sanitize-html');
+// (legacy inline sanitizeHtml removed in favor of central sanitize util)
+const sanitizeHtml = require('sanitize-html'); // kept only if other code paths still reference; will migrate to utils
+const { sanitize } = require('../utils/sanitize');
+const { reencodeToJpeg } = require('../utils/imageSanitizer');
 const { pool } = require('../config/database');
 const R = require('../utils/response');
 
@@ -163,26 +166,8 @@ router.post('/', authenticateToken, async (req,res)=>{
     if(!['admin','propietario'].includes(req.user.rol)) { connection.release(); return R.fail(res,'No tienes permisos para crear noticias',403); }
     if(!slug) slug = buildSlug(titulo);
     slug = await ensureUniqueSlug(slug);
-    // Sanitizar contenido
-    const clean = sanitizeHtml(contenido, {
-      allowedTags: ['p','h1','h2','h3','h4','h5','h6','strong','em','ul','ol','li','a','img','figure','figcaption','blockquote','code','pre','br','span'],
-      allowedAttributes: {
-        a: ['href','title','target','rel'],
-        img: ['src','alt','width','height']
-      },
-      allowedSchemes: ['http','https','mailto'],
-      transformTags: {
-        a: (tag, attribs) => {
-          if(attribs.href && !/^https?:\/\//i.test(attribs.href) && !/^mailto:/i.test(attribs.href)) delete attribs.href;
-          attribs.rel = 'nofollow noopener noreferrer';
-          return { tagName: 'a', attribs };
-        },
-        img: (tag, attribs) => {
-          if(!attribs.src || !(attribs.src.startsWith('/uploads/noticias/imagenes/') || /^https:\/\//i.test(attribs.src))){ return { tagName: 'span', attribs: {} }; }
-          return { tagName: 'img', attribs };
-        }
-      }
-    });
+  // Sanitizar contenido (centralizado)
+  const clean = sanitize(contenido);
     await connection.beginTransaction();
     let r;
     try {
@@ -229,16 +214,8 @@ router.put('/:id', authenticateToken, async (req,res)=>{
     if(!ex.length){ connection.release(); return R.fail(res,'Noticia no encontrada',404); }
     if(!['admin','propietario'].includes(req.user.rol) && ex[0].autor_id!==req.user.id){ connection.release(); return R.fail(res,'Sin permisos',403); }
     if(!slug) slug = buildSlug(titulo);
-    // Sanitizar contenido
-    const clean = sanitizeHtml(contenido, {
-      allowedTags: ['p','h1','h2','h3','h4','h5','h6','strong','em','ul','ol','li','a','img','figure','figcaption','blockquote','code','pre','br','span'],
-      allowedAttributes: { a:['href','title','target','rel'], img:['src','alt','width','height'] },
-      allowedSchemes: ['http','https','mailto'],
-      transformTags: {
-        a: (tag, attribs)=>{ if(attribs.href && !/^https?:\/\//i.test(attribs.href) && !/^mailto:/i.test(attribs.href)) delete attribs.href; attribs.rel='nofollow noopener noreferrer'; return { tagName:'a', attribs }; },
-        img:(tag, attribs)=>{ if(!attribs.src || !(attribs.src.startsWith('/uploads/noticias/imagenes/') || /^https:\/\//i.test(attribs.src))) return { tagName:'span', attribs:{} }; return { tagName:'img', attribs }; }
-      }
-    });
+  // Sanitizar contenido (centralizado)
+  const clean = sanitize(contenido);
     await connection.beginTransaction();
     // Construir update dinámico (no sobreescribir imagen si no se envía)
     let updateSet = 'titulo=?, slug=?, resumen=?, contenido=?, categoria=?, estado=?, destacado=?, fecha_publicacion=?';
@@ -300,12 +277,20 @@ router.get('/:id/imagenes', async (req,res)=>{
 
 // Subida de imágenes (galería / destacada / embebidas unificadas)
 router.post('/:id/imagenes', authenticateToken, (req,res,next)=>{
-  uploadImage.array('imagenes',12)(req,res,(err)=>{
+  uploadImage.array('imagenes',12)(req,res,async (err)=>{
     if(err){
       if(err.message?.includes('Formato inválido')) return R.fail(res, err.message,400);
       if(err.code==='LIMIT_FILE_SIZE') return R.fail(res,'Una de las imágenes excede 5MB',400);
       return R.fail(res,'Error al procesar imágenes',400,{ error: err.message });
     }
+    // Reencodear cada imagen subida para eliminar metadatos y normalizar formato
+    try {
+      if(Array.isArray(req.files)){
+        for(const f of req.files){
+          try { await reencodeToJpeg(f.path); } catch(_e){ /* continuar con otras */ }
+        }
+      }
+    } catch(_){ /* ignorar errores de reencode para no bloquear subida */ }
     next();
   });
 }, async (req,res)=>{

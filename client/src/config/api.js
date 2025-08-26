@@ -1,7 +1,7 @@
 // Configuración centralizada de URLs de API
 const API_CONFIG = {
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5003/api',
-  uploadURL: process.env.REACT_APP_UPLOAD_URL || 'http://localhost:5003/uploads',
+  baseURL: (process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? `${window.location.origin.replace(/\/$/, '')}/api` : 'http://localhost:5002/api')),
+  uploadURL: (process.env.REACT_APP_UPLOAD_URL || (typeof window !== 'undefined' ? `${window.location.origin.replace(/\/$/, '')}/uploads` : 'http://localhost:5002/uploads')),
   
   // Endpoints específicos
   endpoints: {

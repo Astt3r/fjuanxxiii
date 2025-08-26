@@ -4,16 +4,14 @@ export const authService = {
   // Iniciar sesión
   login: async (credentials) => {
     try {
-      console.log('authService: Enviando login con:', credentials);
+      if (process.env.NODE_ENV !== 'production') console.log('authService: login request');
       const response = await api.post(endpoints.auth.login, credentials);
-      console.log('authService: Respuesta cruda del servidor:', response);
-      
+      if (process.env.NODE_ENV !== 'production') console.log('authService: raw response received');
       const data = apiUtils.extractData(response);
-      console.log('authService: Datos extraídos:', data);
-      
+      if (process.env.NODE_ENV !== 'production') console.log('authService: parsed data');
       return data;
     } catch (error) {
-      console.error('authService: Error en login:', error);
+      if (process.env.NODE_ENV !== 'production') console.error('authService: login error');
       console.error('authService: Error response:', error.response);
       throw new Error(apiUtils.handleApiError(error));
     }

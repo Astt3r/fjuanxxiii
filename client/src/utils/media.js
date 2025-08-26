@@ -1,14 +1,14 @@
 // Utilidades para normalizar URLs de medios (imágenes) que vienen del backend
 // Si el backend entrega rutas relativas (/uploads/...), construimos la URL absoluta usando REACT_APP_API_URL
 
-const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5003/api';
+const apiBase = (process.env.REACT_APP_API_URL || (typeof window!=='undefined' ? `${window.location.origin.replace(/\/$/, '')}/api` : 'http://localhost:5002/api'));
 let apiOrigin = apiBase;
 try {
   const u = new URL(apiBase);
   // Si termina en /api eliminar ese sufijo para apuntar al host base de archivos
   apiOrigin = u.origin + (u.pathname.replace(/\/api\/?$/, '') || '');
 } catch(_) {
-  apiOrigin = 'http://localhost:5003';
+  apiOrigin = 'http://localhost:5002';
 }
 
 export function buildMediaUrl(src) {
