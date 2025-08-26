@@ -6,21 +6,44 @@ on:
   pull_request:
     branches: [ main, master ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
+      # Node fijo + cache npm para client y server + registry explícito
       - name: Use Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
+          # Muy importante en monorepo: apunta a ambos lockfiles
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
 
+      # --- HARDENING global (raíz del repo) ---
+      - name: Sanitize npm config (root)
+        run: |
+          rm -f .npmrc || true
+          npm config set registry https://registry.npmjs.org
+          npm config delete //registry.npmjs.org/:_authToken || true
+          npm config delete always-auth || true
+          npm ping --registry=https://registry.npmjs.org
+
+      # --- SERVER ---
       - name: Install server deps
         working-directory: server
-        run: npm ci
+        run: |
+          rm -f .npmrc || true
+          npm ci --registry=https://registry.npmjs.org
 
       - name: Lint server
         working-directory: server
@@ -30,10 +53,18 @@ jobs:
         working-directory: server
         run: npm test
 
+      # --- CLIENT ---
       - name: Install client deps
         working-directory: client
-        run: npm ci
+        run: |
+          rm -f .npmrc || true
+          npm ci --registry=https://registry.npmjs.org
 
+      # (opcionales si existen scripts)
       - name: Lint client
         working-directory: client
-        run: npm run lint
+        run: npm run lint --if-present
+
+      - name: Test client
+        working-directory: client
+        run: npm test --if-present
