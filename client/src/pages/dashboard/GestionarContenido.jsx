@@ -115,6 +115,9 @@ const GestionarContenido = () => {
   const [pageEvents, setPageEvents] = useState(1);
   const PAGE_SIZE_NEWS = 10; // filas por página (tabla noticias)
   const PAGE_SIZE_EVENTS = 9; // cards por página (3x3 eventos)
+  // Totales globales (servidor o fallback local)
+  const [totalNewsAll, setTotalNewsAll] = useState(null);
+  const [totalEventsAll, setTotalEventsAll] = useState(null);
   
   // Equivalencias de estados para manejar posibles variaciones desde backend
   const estadoEquivalencias = {
@@ -160,20 +163,7 @@ const GestionarContenido = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [itemType, setItemType] = useState(''); // 'noticia' o 'evento'
 
-  const tabs = [
-    {
-      id: 'noticias',
-      name: 'Noticias',
-      icon: NewspaperIcon,
-      count: stats.totalNoticias
-    },
-    {
-      id: 'eventos',
-      name: 'Eventos',
-      icon: CalendarIcon,
-      count: stats.totalEvents
-    }
-  ];
+  // (Tabs se redefinen más abajo una vez calculados badges dinámicos)
 
   const loadNoticias = async () => {
     try {
@@ -193,6 +183,13 @@ const GestionarContenido = () => {
         const result = await response.json();
         const noticiasData = result.data || result; // admin devuelve array simple
         setNoticias(Array.isArray(noticiasData) ? noticiasData : []);
+        // total desde API si viene en meta/total/count; si no, largo del array (fallback)
+        const serverTotalNews = result?.meta?.total ?? result?.total ?? result?.count;
+        setTotalNewsAll(
+          typeof serverTotalNews === 'number'
+            ? serverTotalNews
+            : (Array.isArray(noticiasData) ? noticiasData.length : 0)
+        );
       } else {
         if(useAdmin && response.status === 401){
           // Reintentar público
@@ -201,6 +198,12 @@ const GestionarContenido = () => {
             const r=await pub.json();
             const noticiasData = r.data || [];
             setNoticias(Array.isArray(noticiasData) ? noticiasData : []);
+            const serverTotalNews = r?.meta?.total ?? r?.total ?? r?.count;
+            setTotalNewsAll(
+              typeof serverTotalNews === 'number'
+                ? serverTotalNews
+                : (Array.isArray(noticiasData) ? noticiasData.length : 0)
+            );
           } else {
             throw new Error('Error al cargar noticias públicas');
           }
@@ -236,6 +239,7 @@ const GestionarContenido = () => {
           resumen: 'Actualización de protocolos de seguridad para el año 2025'
         }
       ]);
+  setTotalNewsAll(2);
     } finally {
       setLoading(false);
     }
@@ -254,17 +258,23 @@ const GestionarContenido = () => {
         // Transformar los eventos para el formato esperado por el componente
         const eventosFormateados = eventosData.map(evento => ({
           id: evento.id,
-          titulo: evento.titulo,
-          descripcion: evento.descripcion,
-          fechaInicio: evento.fecha_evento ? evento.fecha_evento.split('T')[0] : new Date().toISOString().split('T')[0],
-          horaInicio: evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '00:00',
-          ubicacion: evento.ubicacion || 'Sin ubicación',
-          tipoEvento: evento.tipo,
-          categoria: evento.tipo,
-          estado: evento.estado,
-          color: evento.color
+            titulo: evento.titulo,
+            descripcion: evento.descripcion,
+            fechaInicio: evento.fecha_evento ? evento.fecha_evento.split('T')[0] : new Date().toISOString().split('T')[0],
+            horaInicio: evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '00:00',
+            ubicacion: evento.ubicacion || 'Sin ubicación',
+            tipoEvento: evento.tipo,
+            categoria: evento.tipo,
+            estado: evento.estado,
+            color: evento.color
         }));
         setEventos(eventosFormateados);
+        const serverTotalEvents = data?.meta?.total ?? data?.total ?? data?.count;
+        setTotalEventsAll(
+          typeof serverTotalEvents === 'number'
+            ? serverTotalEvents
+            : (Array.isArray(eventosData) ? eventosData.length : 0)
+        );
         refreshStats(); // Actualizar estadísticas
       } else {
         throw new Error('Error al cargar eventos desde la API');
@@ -273,6 +283,7 @@ const GestionarContenido = () => {
       console.error('Error al cargar eventos:', error);
       // Fallback a datos de ejemplo
       setEventos(eventosEjemplo);
+      setTotalEventsAll(eventosEjemplo.length);
       toast.error('Error al cargar eventos. Mostrando datos de ejemplo.');
     } finally {
       setLoading(false);
@@ -370,6 +381,12 @@ const GestionarContenido = () => {
     setSearchTerm('');
   }, [activeTab]);
 
+  // Sincronizar totales globales con stats del hook si están disponibles
+  useEffect(() => {
+    if (stats?.totalNoticias != null) setTotalNewsAll(stats.totalNoticias);
+    if (stats?.totalEvents != null) setTotalEventsAll(stats.totalEvents);
+  }, [stats]);
+
   const getStatusBadge = (estado) => {
     const statusConfig = {
       publicado: { bg: 'bg-green-100', text: 'text-green-800', label: 'Publicado' },
@@ -464,6 +481,22 @@ const GestionarContenido = () => {
     const matchesFilter = estadoCoincide(filterStatus, evento.estado);
     return matchesSearch && matchesFilter;
   });
+
+  // Badges dinámicos (filtrados/total)
+  const badgeNews =
+    searchTerm || filterStatus !== 'todos'
+      ? `${filteredNoticias.length}${(totalNewsAll != null && totalNewsAll !== filteredNoticias.length) ? `/${totalNewsAll}` : ''}`
+      : (totalNewsAll ?? filteredNoticias.length);
+
+  const badgeEvents =
+    searchTerm || filterStatus !== 'todos'
+      ? `${filteredEventos.length}${(totalEventsAll != null && totalEventsAll !== filteredEventos.length) ? `/${totalEventsAll}` : ''}`
+      : (totalEventsAll ?? filteredEventos.length);
+
+  const tabs = [
+    { id: 'noticias', name: 'Noticias', icon: NewspaperIcon, count: badgeNews },
+    { id: 'eventos', name: 'Eventos', icon: CalendarIcon, count: badgeEvents }
+  ];
 
   // Noticias paginadas (local)
   const totalNews = filteredNoticias.length;
