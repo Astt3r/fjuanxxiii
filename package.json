@@ -33,7 +33,10 @@
   "author": "Fundación Juan XXIII",
   "license": "PROPRIETARY",
   "devDependencies": {
+    "@eslint/js": "^9.34.0",
     "concurrently": "^8.2.2",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0",
     "nodemon": "^3.0.2"
   },
   "repository": {

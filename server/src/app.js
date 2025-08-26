@@ -21,6 +21,7 @@ const protocolsRoutes = require('./routes/protocols');
 const staffRoutes = require('./routes/staff');
 const adminInvitationsRoutes = require('./routes/adminInvitationsRoutes');
 const { pool } = require('./config/database');
+const corsMw = require('./security/cors');
 
 // Importar middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -161,5 +162,5 @@ app.use('*', (req, res) => {
 
 // Middleware de manejo de errores (debe ir al final)
 app.use(errorHandler);
-
+app.use(corsMw);
 module.exports = app;
