@@ -28,6 +28,10 @@ const connectDB = async () => {
     await createTables();
   } catch (error) {
     console.error('❌ Error conectando a MySQL:', error.message);
+    if (process.env.ALLOW_START_WITHOUT_DB === 'true') {
+      console.warn('⚠️  ALLOW_START_WITHOUT_DB=true: el servidor continuará en modo degradado (consultas fallarán).');
+      return; // no process.exit
+    }
     process.exit(1);
   }
 };
@@ -226,7 +230,7 @@ const createTables = async () => {
     // Índice compuesto para ordenar consultas de galería (ignorar error si ya existe)
     try {
       await pool.execute('ALTER TABLE noticias_imagenes ADD INDEX idx_noticia_orden (noticia_id, orden)');
-    } catch(e){ /* ya existe */ }
+    } catch(_e){ /* ya existe */ }
 
     // --- Migraciones de compatibilidad para columnas acentuadas heredadas ---
     try {
@@ -235,7 +239,7 @@ const createTables = async () => {
         console.log('🔧 Migrando columna noticias_imagenes.tamaño -> tamano');
         await pool.execute('ALTER TABLE noticias_imagenes CHANGE COLUMN `tamaño` `tamano` INT');
       }
-    } catch(migErr){ console.warn('⚠️  No se pudo verificar/migrar columna tamaño en noticias_imagenes:', migErr.message); }
+  } catch(_migErr){ console.warn('⚠️  No se pudo verificar/migrar columna tamaño en noticias_imagenes:'); }
     try {
       const [colArc] = await pool.query("SHOW COLUMNS FROM archivos LIKE 'tamaño_archivo'");
       if (colArc.length) {
@@ -246,7 +250,7 @@ const createTables = async () => {
         console.log('🔧 Migrando columna archivos.tamaño -> tamano');
         await pool.execute('ALTER TABLE archivos CHANGE COLUMN `tamaño` `tamano` INT');
       }
-    } catch(mig2){ console.warn('⚠️  Migración columnas archivos omitida:', mig2.message); }
+  } catch(_mig2){ console.warn('⚠️  Migración columnas archivos omitida:'); }
 
     // Backfill: asignar imagen destacada a noticias que aún no tienen (primera imagen por orden)
     try {
@@ -265,8 +269,8 @@ const createTables = async () => {
       if (result && result.affectedRows) {
         console.log(`🔄 Backfill imágenes noticias: ${result.affectedRows} filas actualizadas`);
       }
-    } catch (e) {
-      console.warn('⚠️  Error en backfill de imágenes (no crítico):', e.message);
+    } catch (_e2) {
+      console.warn('⚠️  Error en backfill de imágenes (no crítico)');
     }
 
     console.log('✅ Tablas de base de datos verificadas/creadas');

@@ -38,8 +38,8 @@ router.post('/login', [
     const token = jwt.sign({ id: user.id, email: user.email, rol: user.rol }, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '24h' });
     await db.query('UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?', [user.id]);
     R.ok(res, { token, user: { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol } });
-  } catch (error) {
-    console.error('Error en login:', error);
+  } catch (_error) {
+    console.error('Error en login');
     R.fail(res, 'Error interno del servidor', 500);
   }
 });
@@ -59,7 +59,7 @@ const verifyToken = (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
-  } catch (error) {
+  } catch (_error) {
     return res.status(401).json({
       success: false,
       message: 'Token inválido'
@@ -74,8 +74,8 @@ router.get('/me', verifyToken, async (req, res) => {
   if (!users.length) return R.fail(res, 'Usuario no encontrado', 404);
   R.ok(res, users[0]);
 
-  } catch (error) {
-    console.error('Error obteniendo usuario:', error);
+  } catch (_error) {
+    console.error('Error obteniendo usuario');
   R.fail(res, 'Error interno del servidor', 500);
   }
 });
@@ -117,9 +117,9 @@ router.post('/register', registerGuard, [
     const hash = await bcrypt.hash(password, saltRounds);
     await db.query('INSERT INTO usuarios (nombre, email, password, rol, estado) VALUES (?,?,?,?,"activo")', [nombre||email.split('@')[0], email, hash, role]);
     R.created(res,{ registered:true });
-  } catch(e){
-    if(e.code==='ER_DUP_ENTRY') return R.fail(res,'Credenciales inválidas',409);
-    console.error('Error en registro:', e);
+  } catch(_e){
+    if(_e.code==='ER_DUP_ENTRY') return R.fail(res,'Credenciales inválidas',409);
+    console.error('Error en registro');
     R.fail(res,'Error interno del servidor',500);
   }
 });

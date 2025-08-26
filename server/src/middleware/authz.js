@@ -16,7 +16,7 @@ function requireRole(...roles) {
         return res.status(403).json({ message: 'No autorizado' });
       }
       return next();
-    } catch (e) {
+  } catch (_err) {
       return res.status(500).json({ message: 'Error en autorización' });
     }
   };

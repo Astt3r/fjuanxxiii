@@ -2,6 +2,7 @@ import axios from 'axios';
 import { buildMediaUrl } from '../utils/media';
 
 // Configuración base de axios
+// Fallback coherente con puerto por defecto del servidor (5003) si no se define REACT_APP_API_URL
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5003/api';
 
 // Crear instancia de axios (no fijamos Content-Type por defecto para permitir FormData dinámico)

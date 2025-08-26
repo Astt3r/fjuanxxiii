@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+// TODO: añadir authenticateToken/requireAdmin para endpoints de escritura futuros
 
 // Obtener todo el personal
 router.get('/', async (req, res) => {

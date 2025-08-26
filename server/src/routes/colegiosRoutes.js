@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+// TODO: proteger operaciones de mutación con authenticateToken/requireAdmin cuando se implementen endpoints de escritura
 
 // Obtener todos los colegios
 router.get('/', async (req, res) => {

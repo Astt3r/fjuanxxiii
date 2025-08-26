@@ -18,7 +18,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const eventsRoutes = require('./routes/events');
 const protocolsRoutes = require('./routes/protocols');
-const staffRoutes = require('./routes/staff');
+// const staffRoutes = require('./routes/staff'); // (unused) desactivado hasta que se requiera
 const adminInvitationsRoutes = require('./routes/adminInvitationsRoutes');
 const { pool } = require('./config/database');
 const corsMw = require('./security/cors');
@@ -136,7 +136,7 @@ app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
     dbStatus = 'up';
-  } catch(e){
+  } catch(_err){ // _err reservado para posible logging futuro
     dbStatus = 'error';
   }
   res.json({ ok:true, db: dbStatus, ts: Date.now() });

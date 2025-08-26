@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { 
-  CalendarIcon, 
+import {
+  CalendarIcon,
   ArrowLeftIcon,
   TagIcon,
   ClockIcon,
   UserIcon,
-  ShareIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -20,41 +19,30 @@ const NoticiaDetalleDebug = () => {
 
   console.log('🎯 NoticiaDetalleDebug montado - ID desde useParams:', id);
 
-  useEffect(() => {
-    console.log('🔄 useEffect ejecutado - ID:', id);
-    if (id) {
-      cargarNoticia();
-    } else {
-      console.error('❌ No hay ID en useParams');
-      setError('ID de noticia no válido');
-      setLoading(false);
-    }
-  }, [id]);
-
-  const cargarNoticia = async () => {
+  const cargarNoticia = useCallback(async () => {
     try {
       console.log('🚀 Iniciando cargarNoticia para ID:', id);
       setLoading(true);
       setError(null);
-      
-      const url = `http://localhost:5002/api/noticias/${id}`;
+
+  const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5003/api'}/noticias/${id}`;
       console.log('📡 Haciendo fetch a:', url);
-      
+
       const response = await fetch(url);
       console.log('📥 Response recibida:', {
         status: response.status,
         ok: response.ok,
-        statusText: response.statusText
+        statusText: response.statusText,
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         console.log('✅ JSON parseado:', result);
-        
+
         // La API devuelve {success: true, data: {...}}
         const noticiaData = result.data || result;
         console.log('📰 Datos de noticia extraídos:', noticiaData);
-        
+
         if (noticiaData && noticiaData.id) {
           setNoticia(noticiaData);
           console.log('✅ Estado actualizado con noticia:', noticiaData);
@@ -66,44 +54,58 @@ const NoticiaDetalleDebug = () => {
         console.error('❌ Error HTTP:', response.status, errorText);
         throw new Error(`Error HTTP ${response.status}: ${errorText}`);
       }
-    } catch (error) {
-      console.error('❌ Error en cargarNoticia:', error);
-      setError(`Error al cargar la noticia: ${error.message}`);
+    } catch (err) {
+      console.error('❌ Error en cargarNoticia:', err);
+      setError(`Error al cargar la noticia: ${err.message}`);
       toast.error('Error al cargar la noticia');
     } finally {
       setLoading(false);
       console.log('🏁 cargarNoticia finalizado');
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    console.log('🔄 useEffect ejecutado - ID:', id);
+    if (id) {
+      cargarNoticia();
+    } else {
+      console.error('❌ No hay ID en useParams');
+      setError('ID de noticia no válido');
+      setLoading(false);
+    }
+  }, [id, cargarNoticia]);
 
   const formatearFecha = (fecha) => {
     console.log('📅 Formateando fecha:', fecha);
     if (!fecha) return 'Fecha no disponible';
-    
+
     try {
       const fechaObj = new Date(fecha);
       if (isNaN(fechaObj.getTime())) {
         return 'Fecha no válida';
       }
-      
+
       const fechaFormateada = fechaObj.toLocaleDateString('es-CL', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
       });
       console.log('✅ Fecha formateada:', fechaFormateada);
       return fechaFormateada;
-    } catch (error) {
-      console.error('Error al formatear fecha:', error);
+    } catch (err) {
+      console.error('Error al formatear fecha:', err);
       return 'Fecha no disponible';
     }
   };
 
   const calcularTiempoLectura = (contenido) => {
-    console.log('⏱️ Calculando tiempo de lectura para contenido:', contenido ? 'presente' : 'ausente');
+    console.log(
+      '⏱️ Calculando tiempo de lectura para contenido:',
+      contenido ? 'presente' : 'ausente'
+    );
     if (!contenido) return 0;
-    const palabras = contenido.replace(/<[^>]*>/g, '').split(' ').length;
+    const palabras = contenido.replace(/<[^>]*>/g, '').trim().split(/\s+/).length;
     const minutos = Math.ceil(palabras / 200);
     console.log('✅ Tiempo calculado:', minutos, 'minutos');
     return minutos;
@@ -133,9 +135,7 @@ const NoticiaDetalleDebug = () => {
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
               {error || 'Noticia no encontrada'}
             </h1>
-            <p className="text-gray-600 mb-6">
-              ID solicitado: {id}
-            </p>
+            <p className="text-gray-600 mb-6">ID solicitado: {id}</p>
             <button
               onClick={() => navigate('/noticias')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
@@ -153,7 +153,7 @@ const NoticiaDetalleDebug = () => {
       {/* Navegación */}
       <div className="bg-white border-b pt-20">
         <div className="container mx-auto px-4 py-4">
-          <Link 
+          <Link
             to="/noticias"
             className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
           >
@@ -184,8 +184,8 @@ const NoticiaDetalleDebug = () => {
             {/* Imagen destacada */}
             {noticia.imagen_url && (
               <div className="h-64 md:h-96 overflow-hidden bg-gray-100">
-                <img 
-                  src={noticia.imagen_url} 
+                <img
+                  src={noticia.imagen_url}
                   alt={noticia.titulo}
                   className="w-full h-full object-cover"
                   onError={(e) => {
@@ -243,7 +243,7 @@ const NoticiaDetalleDebug = () => {
 
               {/* Contenido */}
               {noticia.contenido && (
-                <div 
+                <div
                   className="prose prose-lg max-w-none text-gray-700 leading-relaxed prose-headings:text-gray-900 prose-a:text-blue-600 prose-strong:text-gray-900"
                   dangerouslySetInnerHTML={{ __html: noticia.contenido }}
                 />

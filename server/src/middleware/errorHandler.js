@@ -1,5 +1,5 @@
 // Middleware para manejo centralizado de errores
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   let error = { ...err };
   error.message = err.message;
 

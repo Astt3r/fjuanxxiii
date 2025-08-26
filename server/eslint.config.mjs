@@ -25,9 +25,16 @@ export default [
       },
     },
     rules: {
-      // tus reglas aquí
-      // "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }]
-    },
+      "no-unused-vars": ["error", {
+        "args": "after-used",
+        "ignoreRestSiblings": true,
+        "varsIgnorePattern": "^_",
+        "argsIgnorePattern": "^_",
+        "caughtErrors": "all",
+        "caughtErrorsIgnorePattern": "^_"
+      }]
+    }
+
   },
 
   // (opcional) tests con Jest

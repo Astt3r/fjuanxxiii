@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 
 // Estado inicial
 const initialState = {
@@ -75,40 +75,40 @@ export const useTheme = () => {
 // Provider
 export const ThemeProvider = ({ children }) => {
   const [state, dispatch] = useReducer(themeReducer, initialState);
+  // Evita doble inicialización (React StrictMode en desarrollo) que puede producir cascadas de dispatch
+  const initializedRef = useRef(false);
 
   // Cargar configuración del tema desde localStorage
   useEffect(() => {
+    if (initializedRef.current) return; // garantiza ejecución única
+    initializedRef.current = true;
     const savedTheme = localStorage.getItem('fjuan-theme-config');
-    if (savedTheme) {
-      try {
-        const themeConfig = JSON.parse(savedTheme);
-        Object.keys(themeConfig).forEach(key => {
-          if (key === 'theme') {
-            dispatch({ type: THEME_ACTIONS.SET_THEME, payload: themeConfig[key] });
-          } else if (key === 'primaryColor') {
-            dispatch({ type: THEME_ACTIONS.SET_PRIMARY_COLOR, payload: themeConfig[key] });
-          } else if (key === 'fontSize') {
-            dispatch({ type: THEME_ACTIONS.SET_FONT_SIZE, payload: themeConfig[key] });
-          } else if (key === 'animations') {
-            if (themeConfig[key] !== state.animations) {
-              dispatch({ type: THEME_ACTIONS.TOGGLE_ANIMATIONS });
-            }
-          } else if (key === 'highContrast') {
-            if (themeConfig[key] !== state.highContrast) {
-              dispatch({ type: THEME_ACTIONS.TOGGLE_HIGH_CONTRAST });
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Error cargando configuración del tema:', error);
+    try {
+      if (savedTheme) {
+        const cfg = JSON.parse(savedTheme);
+        // Construir nuevo estado derivado para minimizar dispatch múltiples
+        let next = { ...initialState };
+        if (cfg.theme) next.theme = cfg.theme;
+        if (cfg.primaryColor) next.primaryColor = cfg.primaryColor;
+        if (cfg.fontSize) next.fontSize = cfg.fontSize;
+        if (typeof cfg.animations === 'boolean') next.animations = cfg.animations;
+        if (typeof cfg.highContrast === 'boolean') next.highContrast = cfg.highContrast;
+        // Aplicar diferencias con dispatch individuales solo si cambia valor
+        if (next.theme !== state.theme) dispatch({ type: THEME_ACTIONS.SET_THEME, payload: next.theme });
+        if (next.primaryColor !== state.primaryColor) dispatch({ type: THEME_ACTIONS.SET_PRIMARY_COLOR, payload: next.primaryColor });
+        if (next.fontSize !== state.fontSize) dispatch({ type: THEME_ACTIONS.SET_FONT_SIZE, payload: next.fontSize });
+        if (next.animations !== state.animations) dispatch({ type: THEME_ACTIONS.TOGGLE_ANIMATIONS });
+        if (next.highContrast !== state.highContrast) dispatch({ type: THEME_ACTIONS.TOGGLE_HIGH_CONTRAST });
+      } else {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDark && state.theme !== 'dark') {
+          dispatch({ type: THEME_ACTIONS.SET_THEME, payload: 'dark' });
+        }
       }
-    } else {
-      // Detectar preferencia del sistema para tema oscuro
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) {
-        dispatch({ type: THEME_ACTIONS.SET_THEME, payload: 'dark' });
-      }
+    } catch (err) {
+      console.warn('No se pudo cargar configuración de tema');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Guardar configuración en localStorage cuando cambie el estado

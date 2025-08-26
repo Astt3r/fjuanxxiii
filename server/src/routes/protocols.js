@@ -3,7 +3,6 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const db = require('../config/database');
-const API = process.env.REACT_APP_API_URL;
 
 // 📌 helpers
 const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads'); // ajusta si tu estructura cambia

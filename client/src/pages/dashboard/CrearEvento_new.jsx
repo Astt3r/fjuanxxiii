@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
   CalendarIcon,
@@ -13,7 +12,7 @@ import {
 const CrearEvento = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user } = useAuth();
+  // NOTE: Se eliminó extracción de user de AuthContext porque no se utiliza actualmente.
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -35,18 +34,10 @@ const CrearEvento = () => {
     { value: 'academico', label: 'Académico', color: '#EF4444' }
   ];
 
-  // Cargar evento si es edición
-  useEffect(() => {
-    if (id) {
-      setIsEditing(true);
-      loadEvento();
-    }
-  }, [id]);
-
-  const loadEvento = async () => {
+  const loadEvento = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:5002/api/events/${id}`, {
+  const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5003/api'}/events/${id}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -75,7 +66,15 @@ const CrearEvento = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  // Cargar evento si es edición (id cambia)
+  useEffect(() => {
+    if (id) {
+      setIsEditing(true);
+      loadEvento();
+    }
+  }, [id, loadEvento]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -136,9 +135,10 @@ const CrearEvento = () => {
     setLoading(true);
     
     try {
+      const base = process.env.REACT_APP_API_URL || 'http://localhost:5003/api';
       const url = isEditing 
-        ? `http://localhost:5002/api/events/${id}`
-        : 'http://localhost:5002/api/events';
+        ? `${base}/events/${id}`
+        : `${base}/events`;
       
       const method = isEditing ? 'PUT' : 'POST';
 
