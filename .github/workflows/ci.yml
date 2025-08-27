@@ -1,10 +1,7 @@
 name: CI
-
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  push: { branches: [ main, master ] }
+  pull_request: { branches: [ main, master ] }
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -13,7 +10,6 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -48,6 +44,9 @@ jobs:
 
       - name: Test server
         working-directory: server
+        env:
+          NODE_ENV: test
+          ALLOW_START_WITHOUT_DB: 'true'
         run: npm test
 
       # --- CLIENT ---
@@ -63,4 +62,7 @@ jobs:
 
       - name: Test client
         working-directory: client
+        env:
+          CI: 'true'          # asegura que CRA no se quede en watch
         run: npm test --if-present
+
