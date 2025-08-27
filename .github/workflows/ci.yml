@@ -49,6 +49,21 @@ jobs:
           ALLOW_START_WITHOUT_DB: 'true'
         run: npm test
 
+      - name: "Guard: client must not depend on ESLint 9"
+        working-directory: client
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const p = require('./package.json');
+          const v = (p.devDependencies && p.devDependencies.eslint) || '';
+          if (/^(\^)?9\./.test(v)) {
+            console.error(`client/devDependencies.eslint is ${v}; CRA needs 8.x`);
+            process.exit(1);
+          } else {
+            console.log(`ESLint OK: ${v || '(not declared)'}`);
+          }
+          NODE
+      
       # --- CLIENT ---
       - name: Install client deps
         working-directory: client
