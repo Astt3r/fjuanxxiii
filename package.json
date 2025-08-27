@@ -4,12 +4,12 @@
   "description": "Portal web integral para la Fundación Juan XXIII - Sistema de gestión de contenido y eventos",
   "main": "server/src/server.js",
   "scripts": {
-    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
-    "server:dev": "cd server && npm run dev",
-    "server:start": "cd server && npm start",
-    "client:dev": "cd client && npm start",
-    "client:build": "cd client && npm run build",
-    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "dev": "concurrently -n server,client -c green,blue \"npm run --prefix server dev\" \"npm run --prefix client dev\"",
+    "server:dev": "npm run --prefix server dev",
+    "server:start": "npm run --prefix server start",
+    "client:dev": "npm run --prefix client dev",
+    "client:build": "npm run --prefix client build",
+    "install-all": "npm install && npm run --prefix client install && npm run --prefix server install",
     "build": "npm run client:build",
     "start": "npm run server:start",
     "deploy": "npm run build && npm run start",
@@ -33,9 +33,7 @@
   "author": "Fundación Juan XXIII",
   "license": "PROPRIETARY",
   "devDependencies": {
-    "@eslint/js": "^9.34.0",
     "concurrently": "^8.2.2",
-    "eslint": "^9.34.0",
     "globals": "^16.3.0",
     "nodemon": "^3.0.2"
   },
