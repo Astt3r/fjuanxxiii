@@ -1,3 +1,4 @@
-﻿test('smoke: client bootstraps', () => {
+test('smoke: client bootstraps', () => {
   expect(true).toBe(true);
+  
 });

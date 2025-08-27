@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
@@ -7,27 +7,30 @@ const Eventos = () => {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    cargarEventos();
-  }, [fechaSeleccionada]);
-
-  const cargarEventos = async () => {
+  // 👉 Función estable: cambia solo cuando cambia 'fechaSeleccionada'
+  const cargarEventos = useCallback(async () => {
     try {
+      setLoading(true); // muestra skeleton al cambiar de mes
       const mes = fechaSeleccionada.getMonth() + 1;
       const año = fechaSeleccionada.getFullYear();
-      
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/events?mes=${mes}&año=${año}`);
+
+      const url = `${process.env.REACT_APP_API_URL}/api/events?mes=${mes}&año=${año}`;
+      const response = await fetch(url);
       const data = await response.json();
-      
-      // Asegurar que siempre trabajamos con un array
+
       setEventos(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error cargando eventos:', error);
-      setEventos([]); // Establecer array vacío en caso de error
+      setEventos([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [fechaSeleccionada]);
+
+  // 👉 Efecto depende de la función estable
+  useEffect(() => {
+    cargarEventos();
+  }, [cargarEventos]);
 
   const obtenerDiasDelMes = () => {
     const año = fechaSeleccionada.getFullYear();
@@ -38,26 +41,25 @@ const Eventos = () => {
     const primerDiaSemana = primerDia.getDay();
 
     const dias = [];
-    
+
     // Días del mes anterior para completar la primera semana
     for (let i = primerDiaSemana; i > 0; i--) {
       const dia = new Date(año, mes, -i + 1);
       dias.push({ fecha: dia, esDelMes: false });
     }
-    
+
     // Días del mes actual
     for (let dia = 1; dia <= diasEnMes; dia++) {
       const fecha = new Date(año, mes, dia);
       dias.push({ fecha, esDelMes: true });
     }
-    
+
     return dias;
   };
 
   const obtenerEventosDelDia = (fecha) => {
-    // Asegurar que eventos es un array antes de usar filter
     const eventosArray = Array.isArray(eventos) ? eventos : [];
-    return eventosArray.filter(evento => {
+    return eventosArray.filter((evento) => {
       const fechaEvento = new Date(evento.fecha_evento);
       return fechaEvento.toDateString() === fecha.toDateString();
     });
