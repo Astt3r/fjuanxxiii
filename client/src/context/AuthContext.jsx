@@ -159,18 +159,18 @@ export const AuthProvider = ({ children }) => {
   // Función de login
   const login = async (credentials) => {
     try {
-      console.log('AuthContext: Iniciando login con:', credentials);
+      //console.log('AuthContext: Iniciando login con:', credentials);
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
       
       const response = await authService.login(credentials);
-      console.log('AuthContext: Respuesta del login:', response);
+      //console.log('AuthContext: Respuesta del login:', response);
       
       dispatch({ 
         type: AUTH_ACTIONS.LOGIN_SUCCESS, 
         payload: response 
       });
       
-      console.log('AuthContext: Login exitoso, usuario:', response.user);
+      //console.log('AuthContext: Login exitoso, usuario:', response.user);
       toast.success(`¡Bienvenido, ${response.user.nombre}!`);
       return response;
     } catch (error) {

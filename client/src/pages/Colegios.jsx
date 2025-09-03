@@ -26,7 +26,7 @@ const Colegios = () => {
     try {
       setLoading(true);
       const data = await colegiosApi.getAll();
-      console.log('Response colegios:', data); // Debug
+      //console.log('Response colegios:', data); // Debug
       // Los colegios vienen como array directo
       setColegios(data || []);
       setError(null);

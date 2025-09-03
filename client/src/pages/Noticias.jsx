@@ -42,7 +42,7 @@ const Noticias = () => {
     try {
       setLoading(true);
       const response = await noticiasApi.getAll();
-      console.log('Response noticias:', response); // Debug
+      //console.log('Response noticias:', response); // Debug
       // Extraer datos si vienen en formato {success: true, data: [...]}
       const noticiasData = response?.data || response || [];
       // Filtrar solo publicadas (normalizando posibles variantes "publicado/publicada")
@@ -65,7 +65,7 @@ const Noticias = () => {
   const cargarCategorias = async () => {
     try {
       const response = await noticiasApi.getCategories();
-      console.log('Response categorías:', response); // Debug
+      //console.log('Response categorías:', response); // Debug
       setCategorias(response || []);
     } catch (error) {
       console.error('Error al cargar categorías:', error);

@@ -76,6 +76,8 @@ h1, h2, h3, h4, h5, h6 {
 ::-webkit-scrollbar {
   width: 8px;
 }
+.no-scrollbar::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } /* Edge/Firefox */
 
 ::-webkit-scrollbar-track {
   background: #f1f5f9;

@@ -11,26 +11,66 @@ import {
 } from '@heroicons/react/24/outline';
 import { fundacionImages } from '../assets';
 import { noticiasApi } from '../services/api';
+//import de imagenes
+import sanGabriel from '../assets/logos/san-gabriel.png';
+import sanRafael from '../assets/logos/san rafael.png';
+import pHurtado from '../assets/logos/p hurtado.jpg';
+import juanPablo from '../assets/logos/juan pablo.png';
+import beatoDamian from '../assets/logos/beato damian.png';
+import diegoDeAlcala from '../assets/logos/diego de alcala.png';
+import sanJorge from '../assets/logos/san jorge.png';
+import caunicú from '../assets/logos/cauñicú.png';
+import trapaTrapa from '../assets/logos/trapa trapa butalbelbun.png';
+//
 
 const Home = () => {
   const [noticias, setNoticias] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const cargarNoticias = async () => {
-      try {
-        const response = await noticiasApi.getFeatured();
-        console.log('Response noticias destacadas:', response); // Debug
-        setNoticias((response || []).slice(0, 3)); // Solo las primeras 3 noticias
-      } catch (error) {
-        console.error('Error al cargar noticias:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  let alive = true;
 
-    cargarNoticias();
-  }, []);
+  (async () => {
+    try {
+      setLoading(true);
+
+      let items = [];
+      if (typeof noticiasApi?.getLatest === 'function') {
+        items = await noticiasApi.getLatest({ limit: 3, publicada: true });
+      } else if (typeof noticiasApi?.list === 'function') {
+        items = await noticiasApi.list(); 
+      } else if (typeof noticiasApi?.getAll === 'function') {
+        items = await noticiasApi.getAll();
+      } else {
+        
+        const base = process.env.REACT_APP_API_URL || 'http://localhost:5003';
+        const res = await fetch(`${base}/api/noticias?publicada=1`);
+        const json = await res.json();
+        items = json?.data ?? json ?? [];
+      }
+
+      
+      const sortedTop3 = (items || [])
+        .slice()
+        .sort((a, b) => {
+          const da = new Date(a.fecha_publicacion || a.created_at || 0);
+          const db = new Date(b.fecha_publicacion || b.created_at || 0);
+          return db - da;
+        })
+        .slice(0, 3);
+
+      if (alive) setNoticias(sortedTop3);
+    } catch (err) {
+      console.error('Error al cargar noticias:', err);
+      if (alive) setNoticias([]);
+    } finally {
+      if (alive) setLoading(false);
+    }
+  })();
+
+  return () => { alive = false; };
+}, []);
+
 
   const valores = [
     {
@@ -49,6 +89,19 @@ const Home = () => {
       descripcion: "Formamos agentes de cambio comprometidos con la justicia social y la solidaridad cristiana."
     }
   ];
+  const ESCUDOS = [
+    { src: sanGabriel, alt: 'Colegio San Gabriel Arcángel', href: 'https://sgabriel.cl/csga/' },
+    { src: sanRafael,  alt: 'Colegio San Rafael Arcángel',  href: 'https://www.colegiosanrafael.cl/' },
+    { src: pHurtado,   alt: 'Colegio Padre Alberto Hurtado', href: 'https://colegioalbertohurtado.cl/' },
+    { src: juanPablo,  alt: 'Colegio Juan Pablo II',         href: 'https://colegiojuanpablo.cl/' },
+    { src: beatoDamian,alt: 'Colegio Beato Damián',          href: 'http://www.cdmolokai.cl/web/' },
+    { src: diegoDeAlcala, alt: 'Colegio San Diego de Alcalá', href: 'http://csandiego.cl/2020/' },
+    { src: sanJorge,   alt: 'Colegio San Jorge',             href: 'https://www.colegiosanjorgelaja.cl/' },
+    { src: caunicú,    alt: 'Escuela Particular Cauñicú',    href: 'https://www.facebook.com/caunicu/' },
+    { src: trapaTrapa, alt: 'Escuela Trapa Trapa Butalelbún',href: 'https://www.facebook.com/escuelapart.trapatrapabuta/' },
+  ];
+  
+
 
   return (
     <motion.div
@@ -58,7 +111,7 @@ const Home = () => {
       transition={{ duration: 0.5 }}
       className="min-h-screen"
     >
-      {/* Hero Section Animado */}
+      {/* Hero Section */}
       <section className="relative min-h-screen flex items-center overflow-hidden">
         {/* Fondo inicial con color */}
         <motion.div 
@@ -233,6 +286,30 @@ const Home = () => {
                 </motion.div>
               </motion.div>
             </div>
+          </div>
+        </div>
+      </section>
+      {/* Franja de escudos */}
+      <section className="bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-11 py-6 md:py-8 overflow-x-auto">
+            {ESCUDOS.map(({ src, alt, href }, i) => {
+              const external = href.startsWith('http');
+              const props = external
+                ? { href, target: '_blank', rel: 'noopener noreferrer' }
+                : { href }; // si usas <Link>, cambia <a> por <Link to={href}>
+              return (
+                <a key={i} {...props} className="shrink-0 group" aria-label={alt} title={alt}>
+                  <img
+                    src={src}
+                    alt={alt}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-16 md:h-20 w-auto object-contain select-none transition-all duration-300 hover:scale-[1.50]"
+                  />
+                </a>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -537,7 +614,7 @@ const Home = () => {
                         </div>
                       )}
                       
-                      {/* Overlay católico sutil */}
+                      {/* Overlay*/}
                       <div className="absolute top-4 right-4">
                         <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg">
                           <CalendarIcon className="h-4 w-4 text-primary-600" />
@@ -600,7 +677,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* CTA Section Mejorado */}
+      {/* CTA Section*/}
       <section className="py-24 bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 text-white relative overflow-hidden">
         {/* Patrón decorativo de fondo */}
         <div className="absolute inset-0">

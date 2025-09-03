@@ -43,6 +43,16 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+if (process.env.NODE_ENV === 'production') {
+  // Conserva warn/error por si hay incidentes
+  // Evita romper librerías que interrogan typeof console
+  /* eslint-disable no-console */
+  console.log = () => {};
+  console.debug = () => {};
+  console.info = () => {};
+  console.trace = () => {};
+  /* eslint-enable no-console */
+}
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
