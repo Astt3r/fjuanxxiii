@@ -1,6 +1,7 @@
 const sanitizeHtml = require('sanitize-html');
 
-const policy = {
+// Política base (flexible para contenido enriquecido controlado)
+const basePolicy = {
   allowedTags: [
     'p','h1','h2','h3','strong','em','ul','ol','li','a','img','blockquote','br','hr','code','pre','span'
   ],
@@ -16,9 +17,28 @@ const policy = {
   }
 };
 
-function sanitize(input) {
-  if (!input) return input;
-  return sanitizeHtml(input, policy);
+// Política estricta opcional (sin inline width/height, sin data: imágenes) activable con CONTENT_STRICT_MODE=true
+function buildPolicy(){
+  if(process.env.CONTENT_STRICT_MODE === 'true'){
+    return {
+      ...basePolicy,
+      allowedAttributes: {
+        a: ['href','title','rel','target'],
+        img: ['src','alt','title']
+      },
+      allowedSchemes: ['http','https','mailto'],
+    };
+  }
+  return basePolicy;
 }
 
-module.exports = { sanitize, policy };
+function sanitize(input) {
+  if (!input) return input;
+  const policy = buildPolicy();
+  let out = sanitizeHtml(input, policy);
+  // Limpieza secundaria: eliminar on* handlers que pudieran pasar por atributos no listados en edge cases
+  out = out.replace(/\son[a-z]+="[^"]*"/gi,'');
+  return out;
+}
+
+module.exports = { sanitize, policy: basePolicy };

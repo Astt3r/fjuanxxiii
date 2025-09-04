@@ -6,11 +6,9 @@ import {
   MapPinIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  PlusIcon,
   FunnelIcon,
   TagIcon
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../context/AuthContext';
 import API_CONFIG from '../config/api';
 import toast from 'react-hot-toast';
 
@@ -20,7 +18,7 @@ const CalendarioEventos = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState('todos');
-  const { user } = useAuth();
+  // const { user } = useAuth(); // (ya no se usa: creación de eventos solo en dashboard)
 
   // Tipos de eventos según requerimientos
   const tiposEventos = {
@@ -242,15 +240,7 @@ const CalendarioEventos = () => {
                     </button>
                   ))}
                 </div>
-                {user && (user.rol === 'admin' || user.rol === 'propietario') && (
-                  <button
-                    onClick={() => window.location.href = '/dashboard/crear-evento'}
-                    className="flex items-center gap-2 bg-secondary-600 text-white px-4 py-2 rounded-full hover:bg-secondary-700 transition-colors"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                    Crear Evento
-                  </button>
-                )}
+
               </div>
             </div>
           </div>

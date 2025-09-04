@@ -14,6 +14,7 @@ const EditarEvento = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [formData, setFormData] = useState({
     titulo: '',
@@ -70,6 +71,10 @@ const EditarEvento = () => {
         setLoadingData(false);
       }
     };
+    if (id) {
+      setIsEditing(true);
+      loadEvento();
+    }
 
     if (id) {
       loadEvento();
@@ -102,6 +107,17 @@ const EditarEvento = () => {
     if (!formData.fecha_evento) {
       toast.error('La fecha del evento es requerida');
       return false;
+    }
+    // Validar que la fecha no sea en el pasado (solo para eventos nuevos)
+    if (!isEditing) {
+      const fechaEvento = new Date(formData.fecha_evento);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      
+      if (fechaEvento < hoy) {
+        toast.error('La fecha del evento no puede ser en el pasado');
+        return false;
+      }
     }
 
     // Validar horarios si ambos están presentes

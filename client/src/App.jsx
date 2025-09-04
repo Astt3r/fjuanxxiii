@@ -28,7 +28,6 @@ import ColegioDetalle from './pages/ColegioDetalle';
 import Protocolos from './pages/ProtocolosFixed';
 import Contacto from './pages/Contacto';
 import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import CrearNoticiaAvanzada from './pages/dashboard/CrearNoticiaAvanzada';
 import CrearEvento from './pages/dashboard/CrearEvento';
@@ -68,17 +67,10 @@ function App() {
                     <Route path="/contacto" element={<Contacto />} />
                     
                     {/* Rutas de autenticación (deshabilitadas en producción) */}
-                    {process.env.NODE_ENV !== 'production' ? (
-                      <>
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/register" element={<Register />} />
-                      </>
-                    ) : (
-                      <>
-                        <Route path="/login" element={<Navigate to="/" replace />} />
-                        <Route path="/register" element={<Navigate to="/" replace />} />
-                      </>
-                    )}
+                    {/* Login solamente (registro deshabilitado permanentemente) */}
+                    <Route path="/login" element={<Login />} />
+                    {/* Redirección defensiva si alguien intenta /register */}
+                    <Route path="/register" element={<Navigate to="/" replace />} />
                     
                     {/* Rutas protegidas */}
                     <Route 

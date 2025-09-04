@@ -187,18 +187,7 @@ const Login = () => {
             )}
           </button>
 
-          {/* Link a registro */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              ¿No tienes una cuenta?{' '}
-              <Link
-                to="/register"
-                className="font-medium text-primary-600 hover:text-primary-500"
-              >
-                Regístrate aquí
-              </Link>
-            </p>
-          </div>
+          {/* Registro deshabilitado: se oculta enlace */}
         </form>
 
         {/* Información adicional */}

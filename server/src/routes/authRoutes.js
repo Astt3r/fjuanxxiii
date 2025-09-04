@@ -7,6 +7,11 @@ const db = require('../config/database');
 const R = require('../utils/response');
 const { registerGuard } = require('../middleware/registerGuard');
 const { validateInvitation, markInvitationUsed } = require('../services/invitationsService');
+// Hardening login
+const loginOriginEnforcer = require('../middleware/loginOriginEnforcer');
+const { isBlocked, registerFail, registerSuccess, blockResponse } = require('../security/loginAttempts');
+const { isBlockedEmail, registerFailEmail, registerSuccessEmail } = require('../security/emailHashRateLimit');
+const { verifyCaptcha } = require('../security/captcha');
 
 // JWT secret validado en el arranque
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -18,8 +23,9 @@ const passwordPolicy = (value) => {
   return true;
 };
 
-// Ruta de login
+// Ruta de login endurecida (middleware opcional por env)
 router.post('/login', [
+  loginOriginEnforcer,
   body('email').isEmail().normalizeEmail(),
   body('password').isString().isLength({ min: 1 })
 ], async (req, res) => {
@@ -28,18 +34,38 @@ router.post('/login', [
     if(!errors.isEmpty()) return R.fail(res, 'Credenciales inválidas', 401);
     const { email, password } = req.body;
 
+    // Bloqueo por IP + combinado + email hash
+    if (isBlocked(req.ip, email) || isBlockedEmail(email)) return blockResponse(res);
+
+    // Verificación CAPTCHA (opcional por env y sólo tras ciertos fallos si se quiere evolucionar)
+    if(process.env.CAPTCHA_ENABLE === 'true'){
+      // Modo adaptativo futuro: exigir tras X fallos IP/email; por ahora siempre si está activado
+      const fieldName = process.env.CAPTCHA_FIELD || 'captchaToken';
+      const token = req.body[fieldName];
+      const result = await verifyCaptcha(token);
+      if(!result.ok){
+        // NO decir que es captcha para evitar enumeración
+        registerFail(req.ip, email); registerFailEmail(email);
+        return R.fail(res,'Credenciales inválidas',401);
+      }
+    }
+
     const users = await db.query('SELECT id, nombre, email, password, rol, estado FROM usuarios WHERE email = ? AND estado = "activo"', [email]);
-    if (!users.length) return R.fail(res, 'Credenciales inválidas', 401);
+  if (!users.length) { registerFail(req.ip, email); registerFailEmail(email); return R.fail(res, 'Credenciales inválidas', 401); }
 
     const user = users[0];
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return R.fail(res, 'Credenciales inválidas', 401);
+  if (!valid) { registerFail(req.ip, email); registerFailEmail(email); return R.fail(res, 'Credenciales inválidas', 401); }
+
+    // Éxito → limpiar contadores
+  registerSuccess(req.ip, email); registerSuccessEmail(email);
 
     const token = jwt.sign({ id: user.id, email: user.email, rol: user.rol }, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '24h' });
     await db.query('UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?', [user.id]);
     R.ok(res, { token, user: { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol } });
   } catch (_error) {
     console.error('Error en login');
+    // No registramos fail en error interno para no penalizar a usuario legítimo
     R.fail(res, 'Error interno del servidor', 500);
   }
 });
@@ -88,38 +114,37 @@ router.verifyToken = verifyToken;
 
 module.exports = router;
 
-// Registro (cuenta restringida por REGISTER_OPEN o invitación)
-router.post('/register', registerGuard, [
-  body('nombre').optional().trim().isLength({ min: 2 }).escape(),
-  body('email').isEmail().withMessage('Email inválido').normalizeEmail(),
-  body('password').custom(passwordPolicy),
-  body('invitationCode').optional().isString().isLength({ min: 10 })
-], async (req,res) => {
-  try {
-    const errors = validationResult(req);
-    if(!errors.isEmpty()) return R.fail(res,'Datos inválidos',400,{ errors: errors.array().map(e=>({ field:e.path, msg:e.msg })) });
-    const { nombre, email, password, invitationCode } = req.body;
-
-    // Comprobar duplicado (unique index también protege)
-    const existing = await db.query('SELECT id FROM usuarios WHERE email = ?', [email]);
-    if(existing.length) return R.fail(res,'Credenciales inválidas',409); // mensaje genérico
-
-    let role = 'admin'; // por diseño actual (solo admin/propietario). Adaptar según expansión futura.
-    if(process.env.REGISTER_OPEN !== 'true') {
-      // Requiere invitación
-      const invite = await validateInvitation(invitationCode, email);
-      if(!invite) return R.fail(res,'Credenciales inválidas',401);
-      role = invite.role || role;
-      await markInvitationUsed(invite.id);
+// Registro deshabilitado: devolver 404 salvo que REGISTER_OPEN==='true' y DISABLE_REGISTER!=='true'
+if(process.env.DISABLE_REGISTER === 'true' || process.env.REGISTER_OPEN !== 'true'){
+  router.post('/register', (_req,res)=> res.status(404).json({ message:'Not found' }));
+} else {
+  router.post('/register', registerGuard, [
+    body('nombre').optional().trim().isLength({ min: 2 }).escape(),
+    body('email').isEmail().withMessage('Email inválido').normalizeEmail(),
+    body('password').custom(passwordPolicy),
+    body('invitationCode').optional().isString().isLength({ min: 10 })
+  ], async (req,res) => {
+    try {
+      const errors = validationResult(req);
+      if(!errors.isEmpty()) return R.fail(res,'Datos inválidos',400,{ errors: errors.array().map(e=>({ field:e.path, msg:e.msg })) });
+      const { nombre, email, password, invitationCode } = req.body;
+      const existing = await db.query('SELECT id FROM usuarios WHERE email = ?', [email]);
+      if(existing.length) return R.fail(res,'Credenciales inválidas',409);
+      let role = 'admin';
+      if(process.env.REGISTER_OPEN !== 'true') {
+        const invite = await validateInvitation(invitationCode, email);
+        if(!invite) return R.fail(res,'Credenciales inválidas',401);
+        role = invite.role || role;
+        await markInvitationUsed(invite.id);
+      }
+      const saltRounds = Math.max(parseInt(process.env.BCRYPT_COST||'12',10),12);
+      const hash = await bcrypt.hash(password, saltRounds);
+      await db.query('INSERT INTO usuarios (nombre, email, password, rol, estado) VALUES (?,?,?,? ,"activo")', [nombre||email.split('@')[0], email, hash, role]);
+      R.created(res,{ registered:true });
+    } catch(_e){
+      if(_e.code==='ER_DUP_ENTRY') return R.fail(res,'Credenciales inválidas',409);
+      console.error('Error en registro');
+      R.fail(res,'Error interno del servidor',500);
     }
-
-    const saltRounds = Math.max(parseInt(process.env.BCRYPT_COST||'12',10),12);
-    const hash = await bcrypt.hash(password, saltRounds);
-    await db.query('INSERT INTO usuarios (nombre, email, password, rol, estado) VALUES (?,?,?,?,"activo")', [nombre||email.split('@')[0], email, hash, role]);
-    R.created(res,{ registered:true });
-  } catch(_e){
-    if(_e.code==='ER_DUP_ENTRY') return R.fail(res,'Credenciales inválidas',409);
-    console.error('Error en registro');
-    R.fail(res,'Error interno del servidor',500);
-  }
-});
+  });
+}

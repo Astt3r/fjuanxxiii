@@ -29,6 +29,9 @@ const logger = require('./middleware/logger');
 
 const app = express();
 
+// Hardening: ocultar cabecera X-Powered-By
+app.disable('x-powered-by');
+
 // Conectar a la base de datos
 connectDB();
 

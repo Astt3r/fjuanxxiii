@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs');
-const { uploadImage } = require('../config/multer');
+const { uploadImage, verifyMagicNumber } = require('../config/multer');
 const { authenticateToken } = require('../middleware/auth');
 
 // Asegurar que la carpeta de uploads existe
@@ -12,38 +12,39 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Ruta para subir imágenes de noticias
-router.post('/image', authenticateToken, uploadImage.single('image'), (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No se ha subido ningún archivo'
-      });
+router.post('/image', authenticateToken, (req,res)=>{
+  uploadImage.single('image')(req,res,async (err)=>{
+    if(err){
+      if(err.code==='LIMIT_FILE_SIZE') return res.status(400).json({ success:false, message:'Imagen excede tamaño máximo'});
+      return res.status(400).json({ success:false, message: err.message });
     }
-
-    // Construir la URL de la imagen
-    const imageUrl = `/uploads/noticias/imagenes/${req.file.filename}`;
-    
-    res.json({
-      success: true,
-      message: 'Imagen subida exitosamente',
-      data: {
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        size: req.file.size,
-        url: imageUrl,
-        fullPath: req.file.path
+    if(!req.file) return res.status(400).json({ success:false, message:'No se ha subido ningún archivo' });
+    // Verificación opcional de firma mágica
+    try {
+      if(process.env.VALIDATE_IMAGE_SIGNATURE === 'true'){
+        const ok = await verifyMagicNumber(req.file.path);
+        if(!ok){
+          // eliminar archivo sospechoso
+          try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+          return res.status(400).json({ success:false, message:'Imagen inválida o tipo no permitido' });
+        }
       }
-    });
-
-  } catch (error) {
-    console.error('Error al subir imagen:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: error.message
-    });
-  }
+      const imageUrl = `/uploads/noticias/imagenes/${req.file.filename}`;
+      return res.json({
+        success:true,
+        message:'Imagen subida exitosamente',
+        data:{
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          size: req.file.size,
+          url: imageUrl
+        }
+      });
+    } catch(e){
+      console.error('Error validando firma de imagen', e);
+      return res.status(500).json({ success:false, message:'Error al procesar imagen' });
+    }
+  });
 });
 
 // Ruta para eliminar imagen

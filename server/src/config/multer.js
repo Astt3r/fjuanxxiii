@@ -58,19 +58,39 @@ const fileFilter = (req, file, cb) => {
 
 // Filtro de archivos para solo permitir imágenes (según especificación: jpeg, png, webp)
 const imageFilter = (req, file, cb) => {
+  const allowSvg = process.env.ALLOW_SVG_IMAGES === 'true';
   const allowedImageTypes = [
     'image/jpeg',
     'image/jpg',
     'image/png',
-    'image/webp'
+    'image/webp',
+    ...(allowSvg ? ['image/svg+xml'] : [])
   ];
-
-  if (allowedImageTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Formato inválido. Solo se permiten imágenes JPEG, PNG o WebP'), false);
+  if (!allowedImageTypes.includes(file.mimetype)) {
+    return cb(new Error('Formato inválido. Solo se permiten imágenes JPEG, PNG, WebP'+(allowSvg?', SVG':'') ), false);
   }
+  cb(null, true);
 };
+
+// Verificación de firma mágica básica (post guardado se revalida en ruta si se activa)
+async function verifyMagicNumber(filePath) {
+  // Leemos primeros bytes
+  const fd = require('fs').openSync(filePath,'r');
+  const buffer = Buffer.alloc(12);
+  try { require('fs').readSync(fd, buffer, 0, 12, 0); } finally { require('fs').closeSync(fd); }
+  // Firmas simples
+  const hex = buffer.toString('hex');
+  // JPEG starts with ffd8ff
+  if(hex.startsWith('ffd8ff')) return true;
+  // PNG starts with 89504e470d0a1a0a
+  if(hex.startsWith('89504e470d0a1a0a')) return true;
+  // WEBP: RIFF....WEBP (RIFF + 4 bytes + 57454250)
+  if(buffer.slice(0,4).toString() === 'RIFF' && buffer.slice(8,12).toString() === 'WEBP') return true;
+  // SVG (texto) no tiene firma binaria -> solo si allowSvg
+  return false;
+}
+
+module.exports.verifyMagicNumber = verifyMagicNumber;
 
 const upload = multer({
   storage: storage,
@@ -91,5 +111,6 @@ const uploadImage = multer({
 
 module.exports = { 
   upload, 
-  uploadImage 
+  uploadImage,
+  verifyMagicNumber
 };

@@ -10,7 +10,10 @@
     "migrate:dry": "node -e \"process.env.DB_HOST||=require('dotenv').config().parsed.DB_HOST; console.log('No hay dry-run real, úsalo solo como recordatorio')\"",
     "seed": "node migrations/seed.js",
     "test": "jest --runInBand",
-    "lint": "eslint src --ext .js"
+  "lint": "eslint src --ext .js",
+  "audit": "npm audit --production",
+  "audit:fix": "npm audit fix --production",
+  "semgrep": "semgrep scan --config auto || echo 'Semgrep finalizo con findings'"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
