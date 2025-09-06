@@ -111,6 +111,19 @@ const GestionarContenido = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
+  const [monthFilter, setMonthFilter] = useState('todos'); // '1'..'12' o 'todos'
+  const [yearFilter, setYearFilter] = useState('todos');   // '2024'.. o 'todos'
+  const toYear = (d) => {
+    const dt = new Date(d);
+    return isNaN(dt) ? null : dt.getFullYear();
+  };
+  const yearsNoticias = Array.from(new Set(
+    (noticias || []).map(n => toYear(n.fecha_publicacion || n.created_at)).filter(Boolean)
+  )).sort((a,b) => b - a);
+  const yearsEventos = Array.from(new Set(
+    (eventos || []).map(e => toYear(e.fechaInicio)).filter(Boolean)
+  )).sort((a,b) => b - a);
+
   // Paginación local
   const [pageNews, setPageNews] = useState(1);
   const [pageEvents, setPageEvents] = useState(1);
@@ -374,7 +387,7 @@ const GestionarContenido = () => {
   useEffect(() => {
     setPageNews(1);
     setPageEvents(1);
-  }, [searchTerm, filterStatus]);
+  }, [searchTerm, filterStatus, monthFilter, yearFilter]);
 
   // Al cambiar de pestaña, reiniciar filtros de estado y búsqueda
   useEffect(() => {
@@ -477,14 +490,22 @@ const GestionarContenido = () => {
     const estadoNorm = getEstadoNoticia(noticia);
     const matchesSearch = noticia.titulo.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = estadoCoincide(filterStatus, estadoNorm);
-    return matchesSearch && matchesFilter;
-  });
+    const baseDate = noticia.fecha_publicacion || noticia.created_at; // se usa también al renderizar
+    const dt = baseDate ? new Date(baseDate) : null;                  // :contentReference[oaicite:2]{index=2}
+    const yearOk  = yearFilter === 'todos'  || (dt && dt.getFullYear() === Number(yearFilter));
+    const monthOk = monthFilter === 'todos' || (dt && (dt.getMonth() + 1) === Number(monthFilter));
+    return matchesSearch && matchesFilter && yearOk && monthOk;
+   });
 
   const filteredEventos = eventos.filter(evento => {
     if (!evento || !evento.titulo) return false;
     const matchesSearch = evento.titulo.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = estadoCoincide(filterStatus, evento.estado);
-    return matchesSearch && matchesFilter;
+    const dt = new Date(`${evento.fechaInicio}T${evento.horaInicio || '00:00'}`); // :contentReference[oaicite:3]{index=3}
+    const valid = !isNaN(dt);
+    const yearOk  = yearFilter === 'todos'  || (valid && dt.getFullYear() === Number(yearFilter));
+    const monthOk = monthFilter === 'todos' || (valid && (dt.getMonth() + 1) === Number(monthFilter));
+    return matchesSearch && matchesFilter && yearOk && monthOk;
   });
   const toDateTime = (e) => new Date(`${e.fechaInicio}T${(e.horaInicio || '00:00')}`);
 
@@ -569,7 +590,7 @@ const GestionarContenido = () => {
               </div>
 
               {/* Search and Filter */}
-              <div className="flex flex-1 max-w-lg gap-3">
+              <div className="flex flex-1 max-w-4xl gap-3">
                 <div className="relative flex-1">
                   <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
@@ -588,6 +609,30 @@ const GestionarContenido = () => {
                   {(activeTab === 'noticias' ? statusOptionsNoticias : statusOptionsEventos).map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
+                </select>
+                {/* Mes */}
+                <select
+                  value={monthFilter}
+                  onChange={(e) => setMonthFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="todos">Mes (todos)</option>
+                  {[
+                    [1,'Enero'],[2,'Febrero'],[3,'Marzo'],[4,'Abril'],[5,'Mayo'],[6,'Junio'],
+                    [7,'Julio'],[8,'Agosto'],[9,'Septiembre'],[10,'Octubre'],[11,'Noviembre'],[12,'Diciembre']
+                  ].map(([v,label]) => <option key={v} value={v}>{label}</option>)}
+                </select>
+
+                {/* Año (dinámico por pestaña) */}
+                <select
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="todos">Año (todos)</option>
+                  {(activeTab === 'noticias' ? yearsNoticias : yearsEventos).map(y =>
+                    <option key={y} value={y}>{y}</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -683,7 +728,7 @@ const GestionarContenido = () => {
                                     {noticia.categoria}
                                   </div>
                                 </div>
-                                {noticia.destacado && (
+                                {!!noticia.destacado && (
                                   <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 shrink-0">
                                     Destacado
                                   </span>

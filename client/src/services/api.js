@@ -138,7 +138,6 @@ export const apiUtils = {
 
   // Función para extraer datos de respuesta
   extractData: (response) => {
-  // Limpieza: se removieron logs de depuración para evitar exposición en consola
     // Si la respuesta tiene una estructura success/data
     if (response?.data?.success && response?.data?.data) {
       return response.data.data;
