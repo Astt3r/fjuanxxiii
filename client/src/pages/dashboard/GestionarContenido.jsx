@@ -29,6 +29,7 @@ const Pagination = ({ page, pageCount, onChange }) => {
   const start = Math.max(1, page - Math.floor(windowSize / 2));
   const end = Math.min(pageCount, start + windowSize - 1);
   const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-t border-gray-200 text-sm">
@@ -62,45 +63,45 @@ const Pagination = ({ page, pageCount, onChange }) => {
   );
 };
 
-// Datos de ejemplo para eventos (hasta que esté lista la API)
-const eventosEjemplo = [
-  {
-    id: 1,
-    titulo: 'Reunión de Apoderados 4° Básico',
-    descripcion: 'Reunión informativa sobre el proceso académico del segundo semestre',
-    fechaInicio: '2025-08-15',
-    horaInicio: '19:00',
-    ubicacion: 'Aula Magna',
-    tipoEvento: 'reunion',
-    categoria: 'padres',
-    estado: 'activo',
-    color: '#F59E0B'
-  },
-  {
-    id: 2,
-    titulo: 'Campeonato Interescolar de Fútbol',
-    descripcion: 'Torneo deportivo entre los colegios de la fundación',
-    fechaInicio: '2025-08-20',
-    horaInicio: '09:00',
-    ubicacion: 'Cancha Principal',
-    tipoEvento: 'deportivo',
-    categoria: 'deportes',
-    estado: 'activo',
-    color: '#10B981'
-  },
-  {
-    id: 3,
-    titulo: 'Misa de Inicio de Año Escolar',
-    descripcion: 'Celebración religiosa para bendecir el nuevo año académico',
-    fechaInicio: '2025-08-25',
-    horaInicio: '10:00',
-    ubicacion: 'Capilla del Colegio',
-    tipoEvento: 'religioso',
-    categoria: 'pastoral',
-    estado: 'activo',
-    color: '#DC2626'
-  }
-];
+// // Datos de ejemplo para eventos (hasta que esté lista la API)
+// const eventosEjemplo = [
+//   {
+//     id: 1,
+//     titulo: 'Reunión de Apoderados 4° Básico',
+//     descripcion: 'Reunión informativa sobre el proceso académico del segundo semestre',
+//     fechaInicio: '2025-08-15',
+//     horaInicio: '19:00',
+//     ubicacion: 'Aula Magna',
+//     tipoEvento: 'reunion',
+//     categoria: 'padres',
+//     estado: 'activo',
+//     color: '#F59E0B'
+//   },
+//   {
+//     id: 2,
+//     titulo: 'Campeonato Interescolar de Fútbol',
+//     descripcion: 'Torneo deportivo entre los colegios de la fundación',
+//     fechaInicio: '2025-08-20',
+//     horaInicio: '09:00',
+//     ubicacion: 'Cancha Principal',
+//     tipoEvento: 'deportivo',
+//     categoria: 'deportes',
+//     estado: 'activo',
+//     color: '#10B981'
+//   },
+//   {
+//     id: 3,
+//     titulo: 'Misa de Inicio de Año Escolar',
+//     descripcion: 'Celebración religiosa para bendecir el nuevo año académico',
+//     fechaInicio: '2025-08-25',
+//     horaInicio: '10:00',
+//     ubicacion: 'Capilla del Colegio',
+//     tipoEvento: 'religioso',
+//     categoria: 'pastoral',
+//     estado: 'activo',
+//     color: '#DC2626'
+//   }
+// ];
 
 const GestionarContenido = () => {
   const { stats, refreshStats } = useContentStats();
@@ -282,8 +283,8 @@ const GestionarContenido = () => {
     } catch (error) {
       console.error('Error al cargar eventos:', error);
       // Fallback a datos de ejemplo
-      setEventos(eventosEjemplo);
-      setTotalEventsAll(eventosEjemplo.length);
+      // setEventos(eventosEjemplo);
+      // setTotalEventsAll(eventosEjemplo.length);
       toast.error('Error al cargar eventos. Mostrando datos de ejemplo.');
     } finally {
       setLoading(false);
@@ -386,6 +387,10 @@ const GestionarContenido = () => {
     if (stats?.totalNoticias != null) setTotalNewsAll(stats.totalNoticias);
     if (stats?.totalEvents != null) setTotalEventsAll(stats.totalEvents);
   }, [stats]);
+  useEffect(() => {
+    refreshStats();
+  }, []);
+
 
   const getStatusBadge = (estado) => {
     const statusConfig = {
@@ -481,6 +486,16 @@ const GestionarContenido = () => {
     const matchesFilter = estadoCoincide(filterStatus, evento.estado);
     return matchesSearch && matchesFilter;
   });
+  const toDateTime = (e) => new Date(`${e.fechaInicio}T${(e.horaInicio || '00:00')}`);
+
+  const sortEventosByProximity = (a, b) => {
+    const now = new Date();
+    const da = toDateTime(a), db = toDateTime(b);
+    const aFuture = da >= now, bFuture = db >= now;
+    if (aFuture !== bFuture) return aFuture ? -1 : 1; // futuros primero
+    return da - db; // más próximos antes
+  };
+
 
   // Badges dinámicos (filtrados/total)
   const badgeNews =
@@ -489,9 +504,9 @@ const GestionarContenido = () => {
       : (totalNewsAll ?? filteredNoticias.length);
 
   const badgeEvents =
-    searchTerm || filterStatus !== 'todos'
+    (searchTerm || filterStatus !== 'todos')
       ? `${filteredEventos.length}${(totalEventsAll != null && totalEventsAll !== filteredEventos.length) ? `/${totalEventsAll}` : ''}`
-      : (totalEventsAll ?? filteredEventos.length);
+      : (totalEventsAll ?? (stats?.totalEvents ?? '…'));
 
   const tabs = [
     { id: 'noticias', name: 'Noticias', icon: NewspaperIcon, count: badgeNews },
@@ -499,16 +514,20 @@ const GestionarContenido = () => {
   ];
 
   // Noticias paginadas (local)
-  const totalNews = filteredNoticias.length;
-  const pageCountNews = Math.max(1, Math.ceil(totalNews / PAGE_SIZE_NEWS));
-  const startNews = (pageNews - 1) * PAGE_SIZE_NEWS;
-  const pageNoticias = filteredNoticias.slice(startNews, startNews + PAGE_SIZE_NEWS);
+ const sortedNoticias = [...filteredNoticias].sort((a, b) =>
+   new Date(b.fecha_publicacion || b.created_at) - new Date(a.fecha_publicacion || a.created_at)
+ );
+ const totalNews = sortedNoticias.length;
+ const pageCountNews = Math.max(1, Math.ceil(totalNews / PAGE_SIZE_NEWS));
+ const startNews = (pageNews - 1) * PAGE_SIZE_NEWS;
+ const pageNoticias = sortedNoticias.slice(startNews, startNews + PAGE_SIZE_NEWS);
 
   // Eventos paginados
-  const totalEvents = filteredEventos.length;
+  const sortedEventos = [...filteredEventos].sort(sortEventosByProximity);
+  const totalEvents = sortedEventos.length;
   const pageCountEvents = Math.max(1, Math.ceil(totalEvents / PAGE_SIZE_EVENTS));
   const startEvents = (pageEvents - 1) * PAGE_SIZE_EVENTS;
-  const pageEventos = filteredEventos.slice(startEvents, startEvents + PAGE_SIZE_EVENTS);
+  const pageEventos = sortedEventos.slice(startEvents, startEvents + PAGE_SIZE_EVENTS);
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
@@ -658,7 +677,7 @@ const GestionarContenido = () => {
                               <div className="flex items-start">
                                 <div className="min-w-0">
                                   <div className="text-sm font-medium text-gray-900 line-clamp-2 break-words">
-                                    {noticia.titulo}
+                                    {String(noticia.titulo).replace(/\s*\(\d+\)\s*$/, '')}
                                   </div>
                                   <div className="text-xs text-gray-500 mt-1">
                                     {noticia.categoria}

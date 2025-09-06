@@ -148,6 +148,19 @@ const CrearNoticiaAvanzada = () => {
           galeria: normalizedImgs.map(img => ({ id: img.id, url: img.url, orden: img.orden })),
           fechaPublicacion: (noticia.fecha_publicacion || '').split('T')[0] || dateInputValueOffset(-4)
         }));
+        const contenido = rewriteContentMedia(noticia.contenido || '');
+        const usedIds = new Set(
+          Array.from(contenido.matchAll(/data-media-id="(\d+)"/g)).map(m => String(m[1]))
+        );
+        const galeriaFiltrada = normalizedImgs
+          .filter(img => !usedIds.has(String(img.id)))
+          .map(img => ({ id: img.id, url: img.url, orden: img.orden }));
+
+        setFormData(prev => ({
+          ...prev,
+          contenido,
+          galeria: galeriaFiltrada,
+        }));
       } else {
         toast.error('No se pudo cargar la noticia');
       }
@@ -157,6 +170,8 @@ const CrearNoticiaAvanzada = () => {
       setLoading(false);
     }
   };
+
+
 
   // Manejar cambios
   const handleInputChange = (e) => {
@@ -256,7 +271,7 @@ const CrearNoticiaAvanzada = () => {
     try {
       // Preparar datos solo con los campos que la API espera
       const dataToSend = {
-        titulo: formData.titulo.trim(),
+        titulo: formData.titulo.trim().replace(/\s*\(\d+\)\s*$/, ''),
         slug: formData.seo?.slug || formData.titulo.toLowerCase()
           .replace(/[^\w\s-]/g, '')
           .replace(/\s+/g, '-'),
@@ -430,6 +445,10 @@ const CrearNoticiaAvanzada = () => {
                 <RichTextEditor
                   value={formData.contenido}
                   onChange={(content) => setFormData(prev => ({ ...prev, contenido: content }))}
+                  beforeImageUpload={async () => {
+                    if (!formData.titulo?.trim()) return 'Necesitas un título para subir imágenes';
+                    return true;
+                  }}
                   onImageUpload={async (file) => {
                     // Asegurar noticia (borrador) existe antes de subir
                     try {

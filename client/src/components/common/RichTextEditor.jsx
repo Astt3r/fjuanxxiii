@@ -19,6 +19,8 @@ const RichTextEditor = ({
   value, 
   onChange, 
   onImageUpload, // (file) => Promise<{ url, id?, width?, height?, variants? }>
+  beforeImageUpload, // () => true | string | Promise<true|string> (opcional)
+  initialImageWidthPct = 75,
   onSetFeatured, // (mediaId | imageElement) => void (opcional)
   placeholder = "Comienza a escribir tu contenido aquí...",
   className = "",
@@ -34,6 +36,7 @@ const RichTextEditor = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#000000');
   const [imgAlt, setImgAlt] = useState('');
+  const [imgWidth, setImgWidth] = useState(0);
   const [requestAltFocus, setRequestAltFocus] = useState(false); // solicitar focus tras insertar
   const altInputRef = useRef(null);
 
@@ -120,6 +123,12 @@ const RichTextEditor = ({
       setImgAlt(img.getAttribute('alt') || '');
     } else {
       setImgAlt('');
+    }
+    if (img) {
+      const w = parseInt(img.style.width || img.getAttribute('width') || img.getBoundingClientRect().width, 10) || 0;
+      setImgWidth(w);
+    } else {
+      setImgWidth(0);
     }
   };
 
@@ -268,10 +277,19 @@ const RichTextEditor = ({
     }
   };
 
-  // Manejar carga de imagen
   // Función reutilizable para subir un archivo de imagen (input, pegado o DnD)
-  const uploadImageFile = async (file) => {
+    const uploadImageFile = async (file) => {
     if (!file || !onImageUpload) return;
+   // Guard previo: si devuelve true seguimos; si devuelve string, mostramos el msg
+   if (typeof beforeImageUpload === 'function') {
+     const ok = await beforeImageUpload();
+     if (ok !== true) {
+       alert(typeof ok === 'string' ? ok : 'No se puede subir la imagen todavía.');
+       return; // 👈 Abortamos: NO insertamos placeholder
+     }
+   }
+   
+
 
     const tempId = 'upl-' + Date.now() + Math.random();
     const reader = new FileReader();
@@ -345,7 +363,7 @@ const RichTextEditor = ({
             // Tamaño inicial razonable (60% ancho editor, sin exceder natural ni contenedor)
             const containerW = editorRef.current?.clientWidth || 800;
             const natW = Number(w) || containerW;
-            const initW = Math.min(natW, Math.round(containerW * 0.6));
+            const initW = Math.min(natW, Math.round(containerW * (initialImageWidthPct/100)));
             if (!img.style.width) {
               img.style.width = initW + 'px';
               img.setAttribute('width', String(initW));
@@ -370,6 +388,13 @@ const RichTextEditor = ({
       }
     } catch (e) {
       alert(e?.message || 'Error al subir la imagen');
+      // 2) Limpieza del placeholder si algo falló
+     const editor = editorRef.current;
+     if (editor) {
+       const ph = editor.querySelector(`figure[data-temp="${tempId}"]`);
+       if (ph) { ph.remove(); handleContentChange(); }
+     }
+     alert(e?.message || 'Error al subir la imagen');
     }
   };
 
@@ -653,6 +678,36 @@ const RichTextEditor = ({
                 }}
               >⭐ Destacar</button>
             )}
+          </div>
+                  <div className="text-xs text-gray-600">Ancho</div>
+          <input
+            type="range"
+            min={120}
+            max={Math.round((editorRef.current?.clientWidth || 800))}
+            value={imgWidth || 120}
+            onChange={(e) => {
+              const w = parseInt(e.target.value, 10);
+              setImgWidth(w);
+              const sel = editorRef.current?.querySelector('img.rte-selected');
+              if (sel) { sel.style.width = w + 'px'; sel.setAttribute('width', String(w)); handleContentChange(); }
+            }}
+          />
+          <div className="flex gap-1">
+            {[25,50,75,100].map(pct => (
+              <button
+                key={pct}
+                type="button"
+                className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 rounded px-2 py-1"
+                onMouseDown={(e)=>e.preventDefault()}
+                onClick={()=>{
+                  const cont = editorRef.current?.clientWidth || 800;
+                  const w = Math.round(cont * (pct/100));
+                  setImgWidth(w);
+                  const sel = editorRef.current?.querySelector('img.rte-selected');
+                  if (sel) { sel.style.width = w + 'px'; sel.setAttribute('width', String(w)); handleContentChange(); }
+                }}
+              >{pct}%</button>
+            ))}
           </div>
         </div>
       )}
