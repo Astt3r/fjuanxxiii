@@ -37,8 +37,6 @@ import GestionarContenido from './pages/dashboard/GestionarContenido';
 import DetalleNoticia from './pages/dashboard/DetalleNoticia';
 import NotFound from './pages/NotFound';
 
-// (Se removió TanStack React Query)
-
 function App() {
   return (
       <ThemeProvider>
@@ -65,11 +63,7 @@ function App() {
                     <Route path="/colegios/:id" element={<ColegioDetalle />} />
                     <Route path="/protocolos" element={<Protocolos />} />
                     <Route path="/contacto" element={<Contacto />} />
-                    
-                    {/* Rutas de autenticación (deshabilitadas en producción) */}
-                    {/* Login solamente (registro deshabilitado permanentemente) */}
                     <Route path="/login" element={<Login />} />
-                    {/* Redirección defensiva si alguien intenta /register */}
                     <Route path="/register" element={<Navigate to="/" replace />} />
                     
                     {/* Rutas protegidas */}

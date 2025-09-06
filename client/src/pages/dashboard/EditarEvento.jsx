@@ -28,7 +28,7 @@ const EditarEvento = () => {
     color: '#3B82F6',
     estado: 'activo'
   });
-
+  
   const tiposEvento = [
     { value: 'evento', label: 'Evento General', color: '#3B82F6' },
     { value: 'reunion', label: 'Reunión', color: '#F59E0B' },
@@ -36,6 +36,7 @@ const EditarEvento = () => {
     { value: 'academico', label: 'Académico', color: '#EF4444' }
   ];
 
+  const isLocked = (formData.estado === 'realizado');
   // Cargar datos del evento
   useEffect(() => {
     const loadEvento = async () => {
@@ -143,13 +144,30 @@ const EditarEvento = () => {
     setLoading(true);
     
     try {
+      const start = formData.fecha_evento ? new Date(`${formData.fecha_evento}T${formData.hora_inicio || '00:00'}`) : null;
+      const end   = (formData.fecha_evento && formData.hora_fin) ? new Date(`${formData.fecha_evento}T${formData.hora_fin}`) : null;
+      const now = new Date();
+      let estadoOut = formData.estado;
+      if (!['cancelado','pospuesto','realizado'].includes(estadoOut)) {
+        if (start) {
+          const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+          const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          if (startDay < today || (end && startDay.getTime()===today.getTime() && end < now)) {
+            estadoOut = 'realizado';
+          } else if (start > now) {
+            estadoOut = 'programado';
+          } else {
+            estadoOut = 'activo';
+          }
+        }
+      }
       const response = await fetch(`${API_CONFIG.getEventsURL()}/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, estado: estadoOut })
       });
 
       const json = await response.json().catch(() => null);
@@ -244,6 +262,11 @@ const EditarEvento = () => {
               Eliminar Evento
             </button>
           </div>
+          {isLocked && (
+            <div className="mb-4 rounded-md bg-gray-100 text-gray-800 px-4 py-3 text-sm">
+              Este evento está <strong>realizado</strong> y no es editable. Puedes duplicarlo para reprogramar.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Información básica */}
@@ -328,8 +351,10 @@ const EditarEvento = () => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="activo">Activo</option>
-                    <option value="cancelado">Cancelado</option>
+                    <option value="programado">Programado</option>
                     <option value="pospuesto">Pospuesto</option>
+                    <option value="cancelado">Cancelado</option>
+                    <option value="realizado">Realizado</option>
                   </select>
                 </div>
               </div>

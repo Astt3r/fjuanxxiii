@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
@@ -24,7 +25,8 @@ const CrearEvento = () => {
     hora_fin: '',
     ubicacion: '',
     tipo: 'evento',
-    color: '#3B82F6'
+    color: '#3B82F6',
+    estado: 'activo'
   });
 
   const tiposEvento = [
@@ -33,6 +35,34 @@ const CrearEvento = () => {
     { value: 'celebracion', label: 'Celebración', color: '#10B981' },
     { value: 'academico', label: 'Académico', color: '#EF4444' }
   ];
+  const [searchParams] = useSearchParams();
+    useEffect(() => {
+      const dupId = searchParams.get('duplicateId');
+      if (!dupId) return;
+      (async () => {
+        try {
+          const res = await fetch(`${API_CONFIG.getEventsURL()}/${dupId}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+            }
+          });
+          if (!res.ok) return;
+          const ev = await res.json();
+          setFormData(prev => ({
+            ...prev,
+            titulo: (ev.titulo || '') + ' (copia)',
+            descripcion: ev.descripcion || '',
+            fecha_evento: (ev.fecha_evento || ev.fechaInicio || '').split('T')[0] || '',
+            hora_inicio: (ev.hora_inicio || ev.horaInicio || '').toString().slice(0,5),
+            hora_fin: (ev.hora_fin || ev.horaFin || '') ? ev.hora_fin.toString().slice(0,5) : '',
+            ubicacion: ev.ubicacion || '',
+            tipo: ev.tipo || ev.tipoEvento || 'evento',
+            color: ev.color || '#3B82F6'
+            // estado lo recalculas en handleSubmit (programado/activo/realizado) según fechas
+          }));
+        } catch {}
+      })();
+    }, [searchParams]);
 
   // Cargar evento si es edición
   useEffect(() => {
@@ -135,6 +165,19 @@ const CrearEvento = () => {
     setLoading(true);
     
     try {
+      const start = formData.fecha_evento ? new Date(`${formData.fecha_evento}T${formData.hora_inicio || '00:00'}`) : null;
+      const end   = (formData.fecha_evento && formData.hora_fin) ? new Date(`${formData.fecha_evento}T${formData.hora_fin}`) : null;
+      const now = new Date();
+      let estadoOut = 'activo';
+      if (start) {
+        const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (startDay < today || (end && startDay.getTime()===today.getTime() && end < now)) {
+          estadoOut = 'realizado';
+        } else if (start > now) {
+          estadoOut = 'programado';
+        }
+      }
       const url = isEditing 
         ? `${API_CONFIG.getEndpoint('events')}/${id}`
         : API_CONFIG.getEndpoint('events');
@@ -147,7 +190,7 @@ const CrearEvento = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, estado: estadoOut })
       });
 
       if (response.ok) {

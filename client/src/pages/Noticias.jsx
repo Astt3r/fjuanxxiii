@@ -317,17 +317,18 @@ const Noticias = () => {
               </button>
             </motion.div>
           ) : (
-            <AnimatePresence>
+            <>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {pageNoticias.map((noticia, index) => (
-                  <motion.article
-                    key={noticia.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -30 }}
-                    transition={{ duration: 0.6, delay: index * 0.1 }}
-                    className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 overflow-hidden group"
-                  >
+                <AnimatePresence>
+                  {pageNoticias.map((noticia, index) => (
+                    <motion.article
+                      key={noticia.id || noticia.slug || `news-${noticia._id || noticia.uid || index}`}
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -30 }}
+                      transition={{ duration: 0.6, delay: index * 0.1 }}
+                      className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 overflow-hidden group"
+                    >
                     {/* Imagen o placeholder */}
                     <div className="h-48 bg-gradient-to-br from-blue-400 to-blue-600 relative overflow-hidden">
                       {noticia.imagen_url ? (
@@ -394,13 +395,14 @@ const Noticias = () => {
                       >
                         Leer más 
                         <ChevronRightIcon className="h-4 w-4 ml-1" />
-                      </Link>
-                    </div>
-                  </motion.article>
+                    </Link>
+                  </div>
+                </motion.article>
                 ))}
+                </AnimatePresence>
               </div>
               <Pagination page={currentPage} pageCount={pageCount} onChange={setPage} />
-            </AnimatePresence>
+            </>
           )}
         </div>
       </section>

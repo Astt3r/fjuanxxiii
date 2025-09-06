@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useContentStats } from '../../hooks/useContentStats';
@@ -7,7 +7,23 @@ import { useContentStats } from '../../hooks/useContentStats';
 const Dashboard = () => {
   const { user } = useAuth();
   const { stats, loading: statsLoading } = useContentStats();
+  const navigate = useNavigate();
 
+  // Atajos de teclado: N (nueva noticia), E (nuevo evento)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = (e.target?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
+      const k = e.key?.toLowerCase();
+      if (k === 'n') navigate('/dashboard/noticias/crear');
+      if (k === 'e') navigate('/dashboard/eventos/crear');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navigate]);
+
+  // === Tarjetas principales (las mismas rutas que ya usabas) ===
   const dashboardCards = [
     {
       title: 'Mi Perfil',
@@ -70,27 +86,43 @@ const Dashboard = () => {
     },
   ];
 
-  // Estadísticas dinámicas basadas en la base de datos
+  // === Quick stats (mismos datos; mejor presentación) ===
   const quickStats = [
-    { 
-      label: 'Noticias', 
-      value: statsLoading ? '...' : stats.noticias.total.toString(), 
-      change: statsLoading ? 'Cargando...' : `${stats.noticias.activas} publicadas` 
+    {
+      label: 'Noticias',
+      value: statsLoading ? '…' : (stats?.noticias?.total ?? 0).toString(),
+      change: statsLoading ? 'Cargando…' : `${stats?.noticias?.activas ?? 0} publicadas`,
+      theme: 'from-blue-500 to-indigo-500',
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zM4 10h10v2H4zM4 14h16v2H4z"/></svg>
+      )
     },
-    { 
-      label: 'Eventos', 
-      value: statsLoading ? '...' : stats.eventos.total.toString(), 
-      change: statsLoading ? 'Cargando...' : `${stats.eventos.proximos} próximos` 
+    {
+      label: 'Eventos',
+      value: statsLoading ? '…' : (stats?.eventos?.total ?? 0).toString(),
+      change: statsLoading ? 'Cargando…' : `${stats?.eventos?.proximos ?? 0} próximos`,
+      theme: 'from-orange-500 to-amber-500',
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v2H5a2 2 0 00-2 2v2h18V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm14 8H3v10a2 2 0 002 2h14a2 2 0 002-2V10z"/></svg>
+      )
     },
-    { 
-      label: 'Contenido Activo', 
-      value: statsLoading ? '...' : (stats.noticias.activas + stats.eventos.activos).toString(), 
-      change: statsLoading ? 'Cargando...' : 'Total publicado' 
+    {
+      label: 'Contenido Activo',
+      value: statsLoading ? '…' : ((stats?.noticias?.activas ?? 0) + (stats?.eventos?.activos ?? 0)).toString(),
+      change: statsLoading ? 'Cargando…' : 'Total publicado',
+      theme: 'from-emerald-500 to-teal-500',
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l4 8H8l4-8zm0 20l-4-8h8l-4 8z"/></svg>
+      )
     },
-    { 
-      label: 'Borradores', 
-      value: statsLoading ? '...' : stats.noticias.borradores.toString(), 
-      change: statsLoading ? 'Cargando...' : 'Pendientes de publicar' 
+    {
+      label: 'Borradores',
+      value: statsLoading ? '…' : (stats?.noticias?.borradores ?? 0).toString(),
+      change: statsLoading ? 'Cargando…' : 'Pendientes de publicar',
+      theme: 'from-slate-400 to-gray-500',
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v16H4zM7 7h10v2H7zM7 11h10v2H7z"/></svg>
+      )
     },
   ];
 
@@ -102,7 +134,7 @@ const Dashboard = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="mb-8"
+          className="mb-6"
         >
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             ¡Bienvenido, {user?.nombre}!
@@ -112,40 +144,84 @@ const Dashboard = () => {
           </p>
         </motion.div>
 
-        {/* Quick Stats */}
+        {/* CTA de creación rápida */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+          className="mb-8 rounded-2xl bg-gradient-to-r from-primary-600 to-secondary-500 text-white p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-sm"
+        >
+          <div>
+            <div className="text-sm uppercase tracking-wide text-white/80">Crea algo nuevo</div>
+            <div className="text-xl font-semibold">¿Noticia o evento?</div>
+            <div className="text-white/80 text-xs mt-1">Atajos: N (Noticia) • E (Evento)</div>
+          </div>
+          <div className="flex gap-3">
+            <Link
+              to="/dashboard/noticias/crear"
+              className="inline-flex items-center gap-2 bg-white text-primary-700 hover:bg-gray-100 font-medium px-4 py-2 rounded-lg transition"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v4H4zM4 10h10v10H4zM16 10h4v10h-4z"/></svg>
+              Nueva noticia
+            </Link>
+            <Link
+              to="/dashboard/eventos/crear"
+              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-medium px-4 py-2 rounded-lg transition border border-white/20"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v2H5a2 2 0 00-2 2v2h18V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm14 8H3v10a2 2 0 002 2h14a2 2 0 002-2V10z"/></svg>
+              Nuevo evento
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Quick Stats más visuales */}
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
         >
-          {quickStats.map((stat, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-sm font-medium text-gray-500 mb-1">{stat.label}</h3>
-              <p className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</p>
-              <p className="text-sm text-green-600">{stat.change}</p>
+          {quickStats.map((stat, i) => (
+            <div
+              key={stat.label}
+              className="bg-white rounded-xl border border-gray-200 p-5 relative overflow-hidden"
+            >
+              <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br ${stat.theme} opacity-10`} />
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-500">{stat.label}</h3>
+                <div className={`w-8 h-8 rounded-md text-white flex items-center justify-center bg-gradient-to-br ${stat.theme}`}>
+                  {stat.icon}
+                </div>
+              </div>
+              <div className="mt-2 text-2xl font-bold text-gray-900 tracking-tight">
+                {stat.value}
+              </div>
+              <div className="text-sm mt-1 text-gray-600">
+                {stat.change}
+              </div>
+              {statsLoading && (
+                <div className="mt-3 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full w-1/3 bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse" />
+                </div>
+              )}
             </div>
           ))}
         </motion.div>
 
-        {/* Main Dashboard Cards */}
+        {/* Tarjetas principales (tus mismas rutas) */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
         >
           {dashboardCards.map((card, index) => (
-            <Link
-              key={index}
-              to={card.link}
-              className="group block"
-            >
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+            <Link key={card.title} to={card.link} className="group block">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 relative">
                 <div className={`w-12 h-12 ${card.color} rounded-lg flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform duration-300`}>
                   {card.icon}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">
                   {card.title}
                 </h3>
                 <p className="text-gray-600 text-sm">
@@ -162,34 +238,26 @@ const Dashboard = () => {
           ))}
         </motion.div>
 
-        {/* Admin Section */}
+        {/* Admin */}
         {user?.rol === 'admin' && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
             className="mb-8"
           >
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Panel de Administración
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Panel de Administración</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {adminCards.map((card, index) => (
-                <Link
-                  key={index}
-                  to={card.link}
-                  className="group block"
-                >
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+              {adminCards.map((card) => (
+                <Link key={card.title} to={card.link} className="group block">
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                     <div className={`w-12 h-12 ${card.color} rounded-lg flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform duration-300`}>
                       {card.icon}
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
                       {card.title}
                     </h3>
-                    <p className="text-gray-600 text-sm">
-                      {card.description}
-                    </p>
+                    <p className="text-gray-600 text-sm">{card.description}</p>
                     <div className="mt-4 flex items-center text-primary-600 text-sm font-medium">
                       Acceder
                       <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,46 +271,33 @@ const Dashboard = () => {
           </motion.div>
         )}
 
-        {/* Recent Activity */}
+        {/* Actividad Reciente (placeholder) */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200"
+          className="bg-white rounded-xl shadow-sm border border-gray-200"
         >
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">
-              Actividad Reciente
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900">Actividad Reciente</h2>
           </div>
           <div className="p-6">
             <div className="space-y-4">
               {[
-                {
-                  action: 'Publicaste una nueva noticia',
-                  title: '"Inicio del año escolar 2024"',
-                  time: 'Hace 2 horas',
-                  type: 'publish'
-                },
-                {
-                  action: 'Editaste el artículo',
-                  title: '"Protocolo de convivencia"',
-                  time: 'Hace 1 día',
-                  type: 'edit'
-                },
-                {
-                  action: 'Recibiste 5 nuevos comentarios',
-                  title: 'en "Valores franciscanos"',
-                  time: 'Hace 2 días',
-                  type: 'comment'
-                },
-              ].map((activity, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    activity.type === 'publish' ? 'bg-green-100 text-green-600' :
-                    activity.type === 'edit' ? 'bg-blue-100 text-blue-600' :
-                    'bg-orange-100 text-orange-600'
-                  }`}>
+                { action: 'Publicaste una nueva noticia', title: '"Inicio del año escolar 2024"', time: 'Hace 2 horas', type: 'publish' },
+                { action: 'Editaste el artículo', title: '"Protocolo de convivencia"', time: 'Hace 1 día', type: 'edit' },
+                { action: 'Recibiste 5 nuevos comentarios', title: 'en "Valores franciscanos"', time: 'Hace 2 días', type: 'comment' },
+              ].map((activity) => (
+                <div key={activity.title + activity.time} className="flex items-start space-x-3">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      activity.type === 'publish'
+                        ? 'bg-green-100 text-green-600'
+                        : activity.type === 'edit'
+                        ? 'bg-blue-100 text-blue-600'
+                        : 'bg-orange-100 text-orange-600'
+                    }`}
+                  >
                     {activity.type === 'publish' && (
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -270,10 +325,7 @@ const Dashboard = () => {
               ))}
             </div>
             <div className="mt-6 text-center">
-              <Link
-                to="/dashboard/actividad"
-                className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-              >
+              <Link to="/dashboard/actividad" className="text-primary-600 hover:text-primary-700 text-sm font-medium">
                 Ver toda la actividad →
               </Link>
             </div>

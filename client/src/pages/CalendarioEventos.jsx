@@ -328,11 +328,12 @@ const CalendarioEventos = () => {
                               <div
                                 key={event.id}
                                 className={`
-                                  text-xs px-2 py-1 rounded text-white truncate
-                                  ${getEventTypeColor(event.type)}
-                                `}
-                                title={`${event.title} - ${event.time}`}
-                              >
+                                  text-xs px-2 py-1 rounded truncate
+                                  ${event.estado === 'realizado'
+                                    ? 'bg-gray-200 text-gray-600'
+                                    : `text-white ${getEventTypeColor(event.type)}`
+                                  }
+                                `} title={`${event.title} - ${event.time}`}>
                                 {event.title}
                               </div>
                             ))}
@@ -399,13 +400,15 @@ const CalendarioEventos = () => {
                               <MapPinIcon className="h-4 w-4 mr-2" />
                               {event.location}
                             </div>
-                            {event.estado && (
+                             {event.estado && (
                               <div className="flex items-center">
                                 <TagIcon className="h-4 w-4 mr-2" />
                                 <span className={`px-2 py-1 rounded text-xs ${
-                                  event.estado === 'activo' ? 'bg-green-100 text-green-800' :
-                                  event.estado === 'cancelado' ? 'bg-red-100 text-red-800' :
-                                  'bg-yellow-100 text-yellow-800'
+                                  event.estado === 'activo'     ? 'bg-green-100 text-green-800'   :
+                                  event.estado === 'programado' ? 'bg-blue-100 text-blue-800'     :
+                                  event.estado === 'pospuesto'  ? 'bg-amber-100 text-amber-800'   :
+                                  event.estado === 'cancelado'  ? 'bg-red-100 text-red-800'       :
+                                  /* realizado */                 'bg-gray-100 text-gray-800'
                                 }`}>
                                   {event.estado.charAt(0).toUpperCase() + event.estado.slice(1)}
                                 </span>

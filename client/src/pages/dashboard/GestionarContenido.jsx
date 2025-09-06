@@ -11,6 +11,7 @@ import {
   EyeIcon,
   PencilIcon,
   TrashIcon,
+  DocumentDuplicateIcon,
   MagnifyingGlassIcon,
   NewspaperIcon,
   ClockIcon,
@@ -139,7 +140,9 @@ const GestionarContenido = () => {
     borrador: ['borrador', 'draft', 'pendiente'],
     activo: ['activo', 'activa'],
     programado: ['programado', 'scheduled'],
-    cancelado: ['cancelado', 'cancelada']
+    cancelado: ['cancelado', 'cancelada'],
+    pospuesto: ['pospuesto', 'aplazado'],
+    realizado: ['realizado', 'hecho']
   };
   
   // Opciones de estado según pestaña activa
@@ -152,7 +155,9 @@ const GestionarContenido = () => {
     { value: 'todos', label: 'Todos' },
     { value: 'activo', label: 'Activo' },
     { value: 'programado', label: 'Programado' },
-    { value: 'cancelado', label: 'Cancelado' }
+    { value: 'pospuesto', label: 'Pospuesto' },
+    { value: 'cancelado', label: 'Cancelado' },
+    { value: 'realizado', label: 'Realizado' }
   ];
 
   // Helper para normalizar el estado de una noticia (maneja distintas formas del backend)
@@ -411,7 +416,9 @@ const GestionarContenido = () => {
       borrador: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Borrador' },
       activo: { bg: 'bg-green-100', text: 'text-green-800', label: 'Activo' },
       programado: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Programado' },
-      cancelado: { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelado' }
+      pospuesto: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Pospuesto' },
+      cancelado: { bg: 'bg-red-100',   text: 'text-red-800',   label: 'Cancelado' },
+      realizado: { bg: 'bg-gray-100',  text: 'text-gray-800',  label: 'Realizado' }
     };
 
     const config = statusConfig[estado] || statusConfig.borrador;
@@ -485,6 +492,35 @@ const GestionarContenido = () => {
     return filtro === estadoNorm; // fallback
   };
 
+  // === Derivar estado local coherente con tu SQL ===
+ const parseEventDateTime = (e) => {
+   const f  = e.fechaInicio;
+   const hi = e.horaInicio || '00:00';
+   const hf = e.horaFin || null;
+   const start = f ? new Date(`${f}T${hi}`) : null;
+   const end   = (f && hf) ? new Date(`${f}T${hf}`) : null;
+   return { start, end };
+};
+  const estadoEventoLocal = (e) => {
+    const base = (e.estado || '').toLowerCase();
+    if (['cancelado', 'pospuesto', 'realizado'].includes(base)) return base;
+    const { start, end } = parseEventDateTime(e);
+    const now = new Date();
+    if (!start) return base || 'activo';
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (startDay < today) return 'realizado';
+    if (end && startDay.getTime() === today.getTime() && end < now) return 'realizado';
+    if (!end && startDay.getTime() === today.getTime()) {
+      const sixHoursAgo = new Date(now.getTime() - 6*60*60*1000);
+      
+      if (start < sixHoursAgo) return 'realizado';
+    }
+    return (start > now) ? 'programado' : (base || 'activo');
+  };
+
+  const isLockedEvent = (e) => estadoEventoLocal(e) === 'realizado';
+
   const filteredNoticias = noticias.filter(noticia => {
     if (!noticia || !noticia.titulo) return false;
     const estadoNorm = getEstadoNoticia(noticia);
@@ -500,7 +536,8 @@ const GestionarContenido = () => {
   const filteredEventos = eventos.filter(evento => {
     if (!evento || !evento.titulo) return false;
     const matchesSearch = evento.titulo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = estadoCoincide(filterStatus, evento.estado);
+    const estadoLocal = estadoEventoLocal(evento);
+    const matchesFilter = estadoCoincide(filterStatus, estadoLocal);
     const dt = new Date(`${evento.fechaInicio}T${evento.horaInicio || '00:00'}`); // :contentReference[oaicite:3]{index=3}
     const valid = !isNaN(dt);
     const yearOk  = yearFilter === 'todos'  || (valid && dt.getFullYear() === Number(yearFilter));
@@ -512,6 +549,9 @@ const GestionarContenido = () => {
   const sortEventosByProximity = (a, b) => {
     const now = new Date();
     const da = toDateTime(a), db = toDateTime(b);
+    const aDone = estadoEventoLocal(a) === 'realizado';
+    const bDone = estadoEventoLocal(b) === 'realizado';
+    if (aDone !== bDone) return aDone ? 1 : -1;
     const aFuture = da >= now, bFuture = db >= now;
     if (aFuture !== bFuture) return aFuture ? -1 : 1; // futuros primero
     return da - db; // más próximos antes
@@ -533,6 +573,11 @@ const GestionarContenido = () => {
     { id: 'noticias', name: 'Noticias', icon: NewspaperIcon, count: badgeNews },
     { id: 'eventos', name: 'Eventos', icon: CalendarIcon, count: badgeEvents }
   ];
+    const handleDuplicate = (evento) => {
+    if (!evento?.id) return;
+    // Redirige al crear con el id a duplicar
+    window.location.href = `/dashboard/eventos/crear?duplicateId=${evento.id}`;
+  };
 
   // Noticias paginadas (local)
  const sortedNoticias = [...filteredNoticias].sort((a, b) =>
@@ -815,7 +860,7 @@ const GestionarContenido = () => {
                           <h3 className="text-lg font-medium text-gray-900 line-clamp-2">
                             {evento.titulo}
                           </h3>
-                          {getStatusBadge(evento.estado)}
+                          {getStatusBadge(estadoEventoLocal(evento))}
                         </div>
                         
                         <p className="text-sm text-gray-600 mb-4 line-clamp-2">
@@ -846,13 +891,36 @@ const GestionarContenido = () => {
                             >
                               <EyeIcon className="h-4 w-4" />
                             </button>
+
+                            {/* ÚNICO botón Editar: se deshabilita si está realizado */}
                             <button
-                              onClick={() => handleEdit(evento, 'evento')}
-                              className="text-indigo-600 hover:text-indigo-900"
-                              title="Editar evento"
+                              onClick={() => !isLockedEvent(evento) && handleEdit(evento, 'evento')}
+                              disabled={isLockedEvent(evento)}
+                              title={
+                                isLockedEvent(evento)
+                                  ? 'Evento realizado: bloqueado. Usa “Duplicar” para reprogramar'
+                                  : 'Editar evento'
+                              }
+                              className={
+                                isLockedEvent(evento)
+                                  ? 'opacity-40 cursor-not-allowed'
+                                  : 'text-indigo-600 hover:text-indigo-900'
+                              }
                             >
                               <PencilIcon className="h-4 w-4" />
                             </button>
+
+                            {/* Mostrar Duplicar solo si está bloqueado (realizado) */}
+                            {isLockedEvent(evento) && (
+                              <button
+                                onClick={() => handleDuplicate(evento)}
+                                className="text-gray-400 hover:text-gray-600"
+                                title="Duplicar evento"
+                              >
+                                <DocumentDuplicateIcon className="h-4 w-4" />
+                              </button>
+                            )}
+
                             <button
                               onClick={() => handleDelete(evento, 'evento')}
                               className="text-red-600 hover:text-red-900"
@@ -861,6 +929,7 @@ const GestionarContenido = () => {
                               <TrashIcon className="h-4 w-4" />
                             </button>
                           </div>
+
                         </div>
                       </motion.div>
                     ))}
@@ -963,6 +1032,30 @@ const GestionarContenido = () => {
                 >
                   Editar
                 </button>
+                {itemType === 'evento' ? (
+                  <button
+                    onClick={() => !isLockedEvent(selectedItem) && handleEdit(selectedItem, itemType)}
+                    disabled={isLockedEvent(selectedItem)}
+                    className={
+                      'px-4 py-2 rounded-md transition-colors ' +
+                      (isLockedEvent(selectedItem)
+                        ? 'bg-indigo-300 text-white cursor-not-allowed'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700')
+                    }
+                    title={isLockedEvent(selectedItem)
+                      ? 'Evento realizado: bloqueado. Usa “Duplicar”.'
+                      : 'Editar'}
+                  >
+                    Editar
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleEdit(selectedItem, itemType)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                  >
+                    Editar
+                  </button>
+                )}
               </div>
               <button
                 onClick={closeModals}
