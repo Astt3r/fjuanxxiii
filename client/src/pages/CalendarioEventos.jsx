@@ -56,14 +56,14 @@ const CalendarioEventos = () => {
   const cargarEventos = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Intentando cargar eventos desde:', API_CONFIG.getEventsURL());
+  // carga eventos
       
       const response = await fetch(API_CONFIG.getEventsURL());
-      console.log('📡 Respuesta de la API:', response.status, response.statusText);
+  // respuesta api
       
       if (response.ok) {
         const eventosData = await response.json();
-        console.log('📊 Datos recibidos:', eventosData);
+  // datos recibidos
         
         // Verificar que eventosData sea un array antes de usar map
         if (Array.isArray(eventosData)) {
@@ -81,20 +81,20 @@ const CalendarioEventos = () => {
             estado: evento.estado
           }));
           
-          console.log('✅ Eventos formateados:', eventosFormateados);
+          // eventos formateados
           setEvents(eventosFormateados);
           toast.success(`${eventosFormateados.length} eventos cargados correctamente`);
         } else {
-          console.warn('⚠️ La respuesta de la API no es un array:', eventosData);
+          console.warn('Respuesta API no es array:', eventosData);
           setEvents([]);
           toast.error('Los datos de eventos no tienen el formato esperado');
         }
       } else {
-        console.error('❌ Error en la respuesta:', response.status, response.statusText);
+  console.error('Error en la respuesta:', response.status, response.statusText);
         toast.error(`Error al cargar eventos: ${response.status}`);
       }
     } catch (error) {
-      console.error('❌ Error cargando eventos:', error);
+  console.error('Error cargando eventos:', error);
       toast.error('Error de conexión al cargar eventos. Verifique que el servidor esté ejecutándose.');
     } finally {
       setLoading(false);

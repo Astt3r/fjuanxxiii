@@ -18,7 +18,7 @@ const Login = () => {
   // Navegar cuando el usuario se autentique exitosamente
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('Login: Usuario autenticado, navegando a:', from);
+  // navegación tras autenticación
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, from]);
@@ -32,15 +32,14 @@ const Login = () => {
 
   const onSubmit = async (data) => {
     if (isLoading) return; // proteger doble click
-    console.log('Login form: Iniciando submit con datos:', data);
+  // submit login
     setIsLoading(true);
     try {
-      console.log('Login form: Llamando a login...');
-      const result = await login(data);
-      console.log('Login form: Login completado, resultado:', result);
+  // llamando login
+  await login(data); // login completado
       // Navegación en useEffect
     } catch (error) {
-      console.error('Login form: Error en login:', error);
+  console.error('Error en login:', error);
       const msg = error.message || 'Error al iniciar sesión';
       setError('email', { 
         type: 'server', 

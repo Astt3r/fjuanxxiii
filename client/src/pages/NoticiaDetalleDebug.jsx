@@ -17,55 +17,48 @@ const NoticiaDetalleDebug = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  console.log('🎯 NoticiaDetalleDebug montado - ID desde useParams:', id);
+  // Logs de depuración removidos
 
   const cargarNoticia = useCallback(async () => {
     try {
-      console.log('🚀 Iniciando cargarNoticia para ID:', id);
+  // inicio carga
       setLoading(true);
       setError(null);
 
   const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5003/api'}/noticias/${id}`;
-      console.log('📡 Haciendo fetch a:', url);
+  // fetch url preparada
 
       const response = await fetch(url);
-      console.log('📥 Response recibida:', {
-        status: response.status,
-        ok: response.ok,
-        statusText: response.statusText,
-      });
+  // respuesta recibida
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ JSON parseado:', result);
 
         // La API devuelve {success: true, data: {...}}
         const noticiaData = result.data || result;
-        console.log('📰 Datos de noticia extraídos:', noticiaData);
 
         if (noticiaData && noticiaData.id) {
           setNoticia(noticiaData);
-          console.log('✅ Estado actualizado con noticia:', noticiaData);
         } else {
           throw new Error('Datos de noticia inválidos');
         }
       } else {
         const errorText = await response.text();
-        console.error('❌ Error HTTP:', response.status, errorText);
+  console.error('Error HTTP:', response.status, errorText);
         throw new Error(`Error HTTP ${response.status}: ${errorText}`);
       }
     } catch (err) {
-      console.error('❌ Error en cargarNoticia:', err);
+  console.error('Error en cargarNoticia:', err);
       setError(`Error al cargar la noticia: ${err.message}`);
       toast.error('Error al cargar la noticia');
     } finally {
       setLoading(false);
-      console.log('🏁 cargarNoticia finalizado');
+  // fin carga
     }
   }, [id]);
 
   useEffect(() => {
-    console.log('🔄 useEffect ejecutado - ID:', id);
+  // effect id change
     if (id) {
       cargarNoticia();
     } else {
@@ -76,7 +69,7 @@ const NoticiaDetalleDebug = () => {
   }, [id, cargarNoticia]);
 
   const formatearFecha = (fecha) => {
-    console.log('📅 Formateando fecha:', fecha);
+  // formatear fecha
     if (!fecha) return 'Fecha no disponible';
 
     try {
@@ -91,7 +84,7 @@ const NoticiaDetalleDebug = () => {
         month: 'long',
         day: 'numeric',
       });
-      console.log('✅ Fecha formateada:', fechaFormateada);
+  // fecha formateada
       return fechaFormateada;
     } catch (err) {
       console.error('Error al formatear fecha:', err);
@@ -100,18 +93,15 @@ const NoticiaDetalleDebug = () => {
   };
 
   const calcularTiempoLectura = (contenido) => {
-    console.log(
-      '⏱️ Calculando tiempo de lectura para contenido:',
-      contenido ? 'presente' : 'ausente'
-    );
+  // calcular tiempo lectura
     if (!contenido) return 0;
     const palabras = contenido.replace(/<[^>]*>/g, '').trim().split(/\s+/).length;
     const minutos = Math.ceil(palabras / 200);
-    console.log('✅ Tiempo calculado:', minutos, 'minutos');
+  // tiempo calculado
     return minutos;
   };
 
-  console.log('🎨 Renderizando - loading:', loading, 'error:', error, 'noticia:', !!noticia);
+  // render state trace removido
 
   if (loading) {
     return (

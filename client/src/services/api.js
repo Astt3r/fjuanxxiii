@@ -138,22 +138,18 @@ export const apiUtils = {
 
   // Función para extraer datos de respuesta
   extractData: (response) => {
-  if(process.env.NODE_ENV==='development') console.log('extractData: respuesta completa:', response);
-    
+  // Limpieza: se removieron logs de depuración para evitar exposición en consola
     // Si la respuesta tiene una estructura success/data
     if (response?.data?.success && response?.data?.data) {
-  if(process.env.NODE_ENV==='development') console.log('extractData: extrayendo de response.data.data:', response.data.data);
       return response.data.data;
     }
     
     // Si la respuesta solo tiene data
     if (response?.data) {
-  if(process.env.NODE_ENV==='development') console.log('extractData: extrayendo de response.data:', response.data);
       return response.data;
     }
     
     // Si no hay estructura específica, devolver la respuesta tal como está
-  if(process.env.NODE_ENV==='development') console.log('extractData: devolviendo respuesta tal como está:', response);
     return response;
   },
 
@@ -409,7 +405,7 @@ export const noticiasApi = {
     try {
       const fd = new FormData();
   files.forEach(f => fd.append('imagenes', f));
-  if(process.env.NODE_ENV==='development') console.log('[uploadImages] enviando', files.length, 'archivos al id', id, 'field: imagenes');
+  // Log removido
   const response = await api.post(`/noticias/${id}/imagenes`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       return apiUtils.extractData(response);
     } catch (error) {

@@ -4,15 +4,12 @@ export const authService = {
   // Iniciar sesión
   login: async (credentials) => {
     try {
-      if (process.env.NODE_ENV !== 'production') console.log('authService: login request');
       const response = await api.post(endpoints.auth.login, credentials);
-      if (process.env.NODE_ENV !== 'production') console.log('authService: raw response received');
       const data = apiUtils.extractData(response);
-      if (process.env.NODE_ENV !== 'production') console.log('authService: parsed data');
       return data;
     } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('authService: login error');
-      console.error('authService: Error response:', error.response);
+  // Mantener solo un log de error conciso
+  if (process.env.NODE_ENV !== 'production') console.error('authService: login error');
       throw new Error(apiUtils.handleApiError(error));
     }
   },
@@ -35,7 +32,7 @@ export const authService = {
     } catch (error) {
       // Incluso si falla la petición, limpiamos el token local
       localStorage.removeItem('token');
-      console.error('Error al cerrar sesión:', error);
+  if (process.env.NODE_ENV !== 'production') console.error('logout error');
     }
   },
 
