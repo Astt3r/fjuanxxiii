@@ -88,7 +88,7 @@ const Header = () => {
       }`}
     >
       <div className="container-custom">
-        <nav className="flex items-center justify-between h-16 lg:h-20">
+        <nav className="grid grid-cols-[auto,1fr,auto] items-center h-16 lg:h-20 gap-2">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
             <div
@@ -105,7 +105,7 @@ const Header = () => {
                 className="w-8 h-8 lg:w-10 lg:h-10 object-contain [filter:drop-shadow(0_0_0.6px_rgba(0,0,0,0.35))]"
               />
             </div>
-            <div className="hidden sm:block">
+            <div className="hidden xl:block">
               <h1 className={`text-lg lg:text-xl font-bold transition-colors duration-200 ${
                 isScrolled ? 'text-gray-900' : 'text-white'
               }`}>
@@ -203,7 +203,7 @@ const Header = () => {
           </div>
 
           {/* Acciones del usuario */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-self-end shrink-0 space-x-3">
             {/* Enlace a Revista Surcos */}
             <a
               href="https://diocesissantamariadelosangeles.cl/category/revista-surcos/"
@@ -237,7 +237,7 @@ const Header = () => {
                       {getUserInitials(user?.nombre || 'Usuario')}
                     </span>
                   </div>
-                  <span className={`hidden sm:block text-sm font-medium ${
+                  <span className={`hidden xl:block text-sm font-medium ${
                     isScrolled ? 'text-gray-700' : 'text-white'
                   }`}>
                     {user?.nombre}
@@ -390,11 +390,13 @@ const Header = () => {
                 
                 {/* Enlace a Revista Surcos en móvil */}
                 <div className="px-4 py-2">
-                  <a
+                  <a 
                     href="https://diocesissantamariadelosangeles.cl/category/revista-surcos/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block w-full px-4 py-3 text-sm font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-300 text-center shadow-md"
+                    className={`hidden xl:inline-flex px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 ${
+                      isScrolled ? 'bg-gray-100' : 'bg-white'
+                    }`}
                   >
                     <span className="flex items-center justify-center space-x-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
