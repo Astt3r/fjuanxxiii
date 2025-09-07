@@ -83,22 +83,26 @@ const Header = () => {
       animate={{ y: 0 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white/95 backdrop-blur-md shadow-xl border-b border-gray-100'
-          : 'bg-gradient-to-r from-primary-700 to-primary-600'
+          ? 'bg-white/80 backdrop-blur-xl shadow-sm'
+          : 'bg-gradient-to-r from-primary-800 to-primary-600'
       }`}
     >
       <div className="container-custom">
         <nav className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
-          <Link
-            to="/"
-            className="flex items-center space-x-3 group"
-          >
-            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-200 group-hover:scale-105">
-              <img 
-                src={fundacionImages.logo} 
+          <Link to="/" className="flex items-center space-x-3 group">
+            <div
+              className={
+                `w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-all duration-200 group-hover:scale-105
+        ${isScrolled
+          ? 'bg-transparent ring-1 ring-gray-200/80'
+          : 'bg-transparent ring-1 ring-white/30'}`
+              }
+            >
+              <img
+                src={fundacionImages.logo}
                 alt="Logo Fundación Juan XXIII"
-                className="w-8 h-8 lg:w-10 lg:h-10 object-contain"
+                className="w-8 h-8 lg:w-10 lg:h-10 object-contain [filter:drop-shadow(0_0_0.6px_rgba(0,0,0,0.35))]"
               />
             </div>
             <div className="hidden sm:block">
@@ -108,7 +112,7 @@ const Header = () => {
                 Fundación Juan XXIII
               </h1>
               <p className={`text-xs lg:text-sm transition-colors duration-200 ${
-                isScrolled ? 'text-gray-600' : 'text-gray-200'
+                isScrolled ? 'text-gray-600' : 'text-gray-100/85'
               }`}>
                 Educación con valores
               </p>
@@ -131,7 +135,7 @@ const Header = () => {
                           ? 'text-primary-600'
                           : isScrolled
                           ? 'text-gray-700 hover:text-primary-600'
-                          : 'text-white hover:text-primary-200'
+                          : 'text-white/95 hover:text-white'
                       }`}
                     >
                       {link.label}
@@ -180,7 +184,7 @@ const Header = () => {
                         ? 'text-primary-600'
                         : isScrolled
                         ? 'text-gray-700 hover:text-primary-600'
-                        : 'text-white hover:text-primary-200'
+                        : 'text-white/95 hover:text-white'
                     }`}
                   >
                     {link.label}
@@ -306,6 +310,11 @@ const Header = () => {
             </button>
           </div>
         </nav>
+
+        {/* Línea inferior suave (solo cuando hay fondo claro) */}
+        {isScrolled && (
+          <div className="pointer-events-none h-px w-full bg-gradient-to-r from-transparent via-gray-300/70 to-transparent" />
+        )}
 
         {/* Menú móvil */}
         <AnimatePresence>
