@@ -105,28 +105,6 @@ const createTables = async () => {
       )
     `);
 
-    // Tabla de protocolos
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS protocolos (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        titulo VARCHAR(255) NOT NULL,
-        descripcion TEXT,
-        archivo_url VARCHAR(500) NOT NULL,
-        archivo_nombre VARCHAR(255) NOT NULL,
-        tamaño_archivo INT,
-        tipo_archivo VARCHAR(10),
-        categoria VARCHAR(100),
-        descargas INT DEFAULT 0,
-        estado ENUM('activo', 'inactivo') DEFAULT 'activo',
-        subido_por INT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (subido_por) REFERENCES usuarios(id) ON DELETE SET NULL,
-        INDEX idx_categoria (categoria),
-        INDEX idx_estado (estado)
-      )
-    `);
-
     // Tabla de colegios
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS colegios (
@@ -142,12 +120,24 @@ const createTables = async () => {
         imagen_principal VARCHAR(255),
         año_fundacion INT,
         estado ENUM('activo', 'inactivo') DEFAULT 'activo',
-        destacado BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_estado (estado)
       )
     `);
+
+    // Migración puntual: eliminar columna legacy 'destacado' de colegios si aún existe
+    try {
+      const [colDest] = await pool.query("SHOW COLUMNS FROM colegios LIKE 'destacado'");
+      if (colDest.length) {
+        try {
+          await pool.execute('ALTER TABLE colegios DROP COLUMN destacado');
+          console.log('🔧 Eliminada columna obsoleta colegios.destacado');
+        } catch(dropErr){
+          console.warn('⚠️  No se pudo eliminar columna colegios.destacado (ignorado):', dropErr.message);
+        }
+      }
+    } catch(colErr){ console.warn('⚠️  No se pudo verificar columna colegios.destacado:', colErr.message); }
 
     // Tabla de personal/funcionarios
     await pool.execute(`

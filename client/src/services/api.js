@@ -197,8 +197,7 @@ export const endpoints = {
     detail: (id) => `/schools/${id}`,
     update: (id) => `/schools/${id}`,
     delete: (id) => `/schools/${id}`,
-    featured: '/schools/featured',
-  },
+    },
   content: {
     carousel: '/content/carousel',
     protocols: '/content/protocols',
@@ -240,15 +239,7 @@ export const colegiosApi = {
     }
   },
 
-  // Obtener colegios destacados
-  getFeatured: async () => {
-    try {
-      const response = await api.get(endpoints.colegios.featured);
-      return apiUtils.extractData(response);
-    } catch (error) {
-      throw new Error(apiUtils.handleApiError(error));
-    }
-  },
+  // getFeatured eliminado
 
   // Crear nuevo colegio (admin)
   create: async (data) => {

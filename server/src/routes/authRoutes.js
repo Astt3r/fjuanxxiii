@@ -6,7 +6,6 @@ const router = express.Router();
 const db = require('../config/database');
 const R = require('../utils/response');
 const { registerGuard } = require('../middleware/registerGuard');
-const { validateInvitation, markInvitationUsed } = require('../services/invitationsService');
 // Hardening login
 const loginOriginEnforcer = require('../middleware/loginOriginEnforcer');
 const { isBlocked, registerFail, registerSuccess, blockResponse } = require('../security/loginAttempts');
@@ -122,21 +121,17 @@ if(process.env.DISABLE_REGISTER === 'true' || process.env.REGISTER_OPEN !== 'tru
     body('nombre').optional().trim().isLength({ min: 2 }).escape(),
     body('email').isEmail().withMessage('Email inválido').normalizeEmail(),
     body('password').custom(passwordPolicy),
-    body('invitationCode').optional().isString().isLength({ min: 10 })
+  // invitationCode eliminado (tabla invitations removida)
   ], async (req,res) => {
     try {
       const errors = validationResult(req);
       if(!errors.isEmpty()) return R.fail(res,'Datos inválidos',400,{ errors: errors.array().map(e=>({ field:e.path, msg:e.msg })) });
-      const { nombre, email, password, invitationCode } = req.body;
+  const { nombre, email, password } = req.body; // invitationCode eliminado
       const existing = await db.query('SELECT id FROM usuarios WHERE email = ?', [email]);
       if(existing.length) return R.fail(res,'Credenciales inválidas',409);
       let role = 'admin';
-      if(process.env.REGISTER_OPEN !== 'true') {
-        const invite = await validateInvitation(invitationCode, email);
-        if(!invite) return R.fail(res,'Credenciales inválidas',401);
-        role = invite.role || role;
-        await markInvitationUsed(invite.id);
-      }
+  // Si REGISTER_OPEN != 'true' simplemente bloqueamos (sin invitations)
+  if(process.env.REGISTER_OPEN !== 'true') return R.fail(res,'Registro deshabilitado',403);
       const saltRounds = Math.max(parseInt(process.env.BCRYPT_COST||'12',10),12);
       const hash = await bcrypt.hash(password, saltRounds);
       await db.query('INSERT INTO usuarios (nombre, email, password, rol, estado) VALUES (?,?,?,? ,"activo")', [nombre||email.split('@')[0], email, hash, role]);

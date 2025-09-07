@@ -12,7 +12,7 @@ Este bundle incluye cambios mínimos y seguros para **unificar puertos/URLs**, *
 - **Servidor**
   - `server/.env.example`: `PORT=5002` y sin duplicados de `FRONTEND_URL`.
   - `server/src/middleware/authz.js`: `requireRole(...roles)` para autorización basada en **rol** (JWT).
-  - `server/src/routes/adminInvitationsRoutes.js`: usa `requireRole('admin')` en vez de lista de correos.
+   - (Eliminado) Rutas de invitaciones administrativas retiradas; registro ahora solo controlado por `REGISTER_OPEN`.
   - `server/src/utils/sanitize.js`: helper para sanitizar HTML con `sanitize-html`.
   - `server/src/utils/imageSanitizer.js`: helper para re-encodear imágenes con `sharp` y limpiar metadata.
   - `server/package.json`: scripts `lint`, `test` y devDeps (`jest`, `supertest`, `eslint`).

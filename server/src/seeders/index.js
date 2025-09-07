@@ -51,7 +51,7 @@ const seedDatabase = async () => {
 
     // 3. Insertar colegios
     await query(`
-      INSERT IGNORE INTO colegios (nombre, slug, descripcion, direccion, telefono, email, website, año_fundacion, destacado, estado) VALUES 
+      INSERT IGNORE INTO colegios (nombre, slug, descripcion, direccion, telefono, email, website, año_fundacion, estado) VALUES 
       (
         'Colegio San Rafael Arcángel',
         'san-rafael-arcangel',
@@ -61,7 +61,6 @@ const seedDatabase = async () => {
         'contacto@colegiosanrafael.cl',
         'https://www.colegiosanrafael.cl/',
         1975,
-        true,
         'activo'
       ),
       (
@@ -73,7 +72,6 @@ const seedDatabase = async () => {
         'contacto@sgabriel.cl',
         'https://sgabriel.cl/csga/',
         1986,
-        true,
         'activo'
       ),
       (
@@ -85,7 +83,6 @@ const seedDatabase = async () => {
         'contacto@colegiojuanpablo.cl',
         'https://colegiojuanpablo.cl/',
         1987,
-        true,
         'activo'
       ),
       (
@@ -97,7 +94,6 @@ const seedDatabase = async () => {
         'contacto@colegioalbertohurtado.cl',
         'https://colegioalbertohurtado.cl/',
         1995,
-        true,
         'activo'
       ),
       (
@@ -109,7 +105,6 @@ const seedDatabase = async () => {
         'contacto@cdmolokai.cl',
         'http://www.cdmolokai.cl/web/',
         1996,
-        true,
         'activo'
       ),
       (
@@ -121,7 +116,6 @@ const seedDatabase = async () => {
         'contacto@csandiego.cl',
         'http://csandiego.cl/2020/',
         1990,
-        true,
         'activo'
       ),
       (
@@ -133,7 +127,6 @@ const seedDatabase = async () => {
         'contacto@colegiosanjorgelaja.cl',
         'https://www.colegiosanjorgelaja.cl/',
         2021,
-        true,
         'activo'
       ),
       (
@@ -145,7 +138,6 @@ const seedDatabase = async () => {
         'contacto@caunicu.cl',
         'https://www.facebook.com/caunicu',
         1987,
-        false,
         'activo'
       ),
       (
@@ -157,7 +149,6 @@ const seedDatabase = async () => {
         'contacto@butalelbum.cl',
         'https://www.facebook.com/butalelbum',
         1986,
-        false,
         'activo'
       )
     `);
@@ -179,101 +170,13 @@ const seedDatabase = async () => {
       ('redes_youtube', 'https://www.youtube.com/channel/UC8UBYBwR1NFtAk2S3QZPXIQ', 'URL de YouTube', 'texto')
     `);
 
-    // 5. Insertar noticias destacadas
-    await query(`
-      INSERT IGNORE INTO noticias (titulo, slug, resumen, contenido, categoria, estado, destacado, autor_id, fecha_publicacion) VALUES 
-      (
-        'FERIA CIENTIFICA – TECNOLOGICA',
-        'feria-cientifica-tecnologica',
-        'Este 02 de octubre se realizó una nueva versión de la feria científica – tecnológica Fundación Juan XXIII.',
-        'Este 02 de octubre se realizó una nueva versión de la feria científica – tecnológica Fundación Juan XXIII, en la cual participaron estudiantes de todos nuestros establecimientos educacionales, mostrando proyectos innovadores y creativos que demuestran el compromiso con la educación científica y tecnológica.',
-        'Eventos',
-        'publicado',
-        true,
-        1,
-        '2024-10-04 10:00:00'
-      ),
-      (
-        'Talleres Autocuidado: mejorando la calidad de vida de nuestras y nuestros funcionarios',
-        'talleres-autocuidado-funcionarios',
-        'En el mes de agosto se iniciaron los talleres de autocuidado, gestionados por el área de gestión de personal.',
-        'En el mes de agosto se iniciaron los talleres de autocuidado, gestionados por el área de gestión de personal de la Fundación Juan XXIII. Estos talleres tienen como objetivo mejorar la calidad de vida de nuestros funcionarios y funcionarias, promoviendo prácticas de bienestar y salud mental en el ambiente laboral.',
-        'Personal',
-        'publicado',
-        true,
-        1,
-        '2024-09-05 10:00:00'
-      ),
-      (
-        'English Fest Fundación Juan XXIII',
-        'english-fest-2024',
-        'Durante la semana recién pasada, se efectuó en nuestra Fundación una nueva versión del English Fest 2024.',
-        'Durante la semana recién pasada, se efectuó en nuestra Fundación una nueva versión del English Fest 2024, actividad que busca promover el aprendizaje del idioma inglés entre nuestros estudiantes de todos los establecimientos educacionales, a través de competencias, presentaciones y actividades lúdicas.',
-        'Educación',
-        'publicado',
-        true,
-        1,
-        '2024-09-05 10:00:00'
-      )
-    `);
-
-    // 6. Insertar protocolos (simulando algunos protocolos mencionados en el sitio)
-    await query(`
-      INSERT IGNORE INTO protocolos (titulo, descripcion, archivo_url, archivo_nombre, categoria, estado, subido_por) VALUES 
-      (
-        'Protocolo alumnas embarazadas y retención escolar padres y madres adolescentes',
-        'Protocolo para el apoyo y retención escolar de estudiantes embarazadas y padres/madres adolescentes.',
-        '/uploads/protocolos/protocolo-embarazadas.pdf',
-        'protocolo-embarazadas.pdf',
-        'Convivencia Escolar',
-        'activo',
-        1
-      ),
-      (
-        'Protocolo accidente escolares',
-        'Protocolo de actuación frente a accidentes escolares en los establecimientos de la Fundación.',
-        '/uploads/protocolos/protocolo-accidentes.pdf',
-        'protocolo-accidentes.pdf',
-        'Seguridad',
-        'activo',
-        1
-      ),
-      (
-        'Protocolo de acción frente a una conducta suicida y suicidio de un estudiante',
-        'Protocolo de prevención y actuación frente a conductas suicidas en estudiantes.',
-        '/uploads/protocolos/protocolo-suicidio.pdf',
-        'protocolo-suicidio.pdf',
-        'Salud Mental',
-        'activo',
-        1
-      ),
-      (
-        'Protocolo de actuación frente a situaciones de maltrato, acoso escolar o violencia',
-        'Protocolo para abordar situaciones de maltrato y acoso escolar entre miembros de la comunidad educativa.',
-        '/uploads/protocolos/protocolo-maltrato.pdf',
-        'protocolo-maltrato.pdf',
-        'Convivencia Escolar',
-        'activo',
-        1
-      ),
-      (
-        'Protocolo de acompañamiento a niños, niñas y estudiantes trans',
-        'Protocolo de inclusión y acompañamiento para estudiantes trans en los establecimientos educacionales.',
-        '/uploads/protocolos/protocolo-trans.pdf',
-        'protocolo-trans.pdf',
-        'Inclusión',
-        'activo',
-        1
-      )
-    `);
-
     console.log('✅ Seeder completado exitosamente');
     console.log('📝 Datos iniciales cargados:');
     console.log('   - 2 usuarios administradores');
     console.log('   - 3 funcionarios principales');
-    console.log('   - 9 colegios');
-    console.log('   - Configuraciones del sitio');
-    console.log('   - 3 noticias destacadas');
+  console.log('   - 9 colegios (sin atributo destacado)');
+  console.log('   - Configuraciones del sitio');
+  console.log('   - 3 noticias destacadas (solo para noticias)');
     console.log('   - 5 protocolos base');
     console.log('');
     console.log('🔑 Credenciales de acceso:');

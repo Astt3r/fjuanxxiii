@@ -3,16 +3,9 @@
 Este documento resume los cambios de endurecimiento aplicados al backend.
 
 ## Registro protegido
-- Endpoint `POST /api/auth/register` protegido con `REGISTER_OPEN`.
-- Si `REGISTER_OPEN !== 'true'` se exige `invitationCode` válido.
+- Endpoint `POST /api/auth/register` controlado por `REGISTER_OPEN`.
+- Si `REGISTER_OPEN !== 'true'` el registro está deshabilitado (sin mecanismo de invitaciones ahora retirado).
 - Respuestas genéricas para evitar enumeración de usuarios.
-
-## Invitaciones
-- Tabla `invitations` con hash SHA-256 del código (no se almacena el claro).
-- Endpoints admin:
-  - `POST /api/admin/invitations` crea invitación y devuelve el código una sola vez.
-  - `GET /api/admin/invitations` lista paginada.
-- Al usar una invitación se marca `used_at`.
 
 ## Rate limiting
 - Límite global moderado (existente) + limitador específico de 10 req / 15 min en `/api/auth/*`.

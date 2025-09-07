@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useContentStats } from '../../hooks/useContentStats';
 import API_CONFIG from '../../config/api';
 import toast from 'react-hot-toast';
+
 import {
   PlusIcon,
   DocumentTextIcon,
@@ -16,6 +17,10 @@ import {
   NewspaperIcon,
   ClockIcon,
   MapPinIcon,
+  Bars3Icon,
+  FunnelIcon, 
+  XMarkIcon
+
   
 } from '@heroicons/react/24/outline';
 
@@ -114,6 +119,8 @@ const GestionarContenido = () => {
   const [filterStatus, setFilterStatus] = useState('todos');
   const [monthFilter, setMonthFilter] = useState('todos'); // '1'..'12' o 'todos'
   const [yearFilter, setYearFilter] = useState('todos');   // '2024'.. o 'todos'
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const toYear = (d) => {
     const dt = new Date(d);
     return isNaN(dt) ? null : dt.getFullYear();
@@ -612,6 +619,28 @@ const GestionarContenido = () => {
               Administra noticias y eventos de la fundación
             </p>
           </div>
+          {/* Topbar móvil */}
+           <div className="md:hidden sticky top-16 z-30 bg-white/90 backdrop-blur border-b">
+             <div className="px-4 py-3 flex items-center justify-between">
+               <button
+                 onClick={() => setMobileActionsOpen(true)}
+                 className="p-2 rounded-lg border border-gray-200 text-gray-700"
+                 aria-label="Abrir menú"
+               >
+                 <Bars3Icon className="h-5 w-5" />
+               </button>
+               <div className="text-sm font-medium text-gray-900">
+                {activeTab === 'noticias' ? 'Noticias' : 'Eventos'}
+               </div>
+               <button
+                 onClick={() => setMobileFiltersOpen(true)}
+                 className="p-2 rounded-lg border border-gray-200 text-gray-700"
+                 aria-label="Abrir filtros"
+               >
+                 <FunnelIcon className="h-5 w-5" />
+               </button>
+             </div>
+           </div>
 
           {/* Actions Bar */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -634,9 +663,9 @@ const GestionarContenido = () => {
                 </Link>
               </div>
 
-              {/* Search and Filter */}
-              <div className="flex flex-1 max-w-4xl gap-3">
-                <div className="relative flex-1">
+              {/* Search and Filter (desktop) */}
+              <div className="hidden md:flex flex-1 max-w-5xl gap-3">
+                <div className="relative flex-1 min-w-0">
                   <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
@@ -649,7 +678,7 @@ const GestionarContenido = () => {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent min-w-[160px]"
                 >
                   {(activeTab === 'noticias' ? statusOptionsNoticias : statusOptionsEventos).map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -659,7 +688,7 @@ const GestionarContenido = () => {
                 <select
                   value={monthFilter}
                   onChange={(e) => setMonthFilter(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent min-w-[140px]"
                 >
                   <option value="todos">Mes (todos)</option>
                   {[
@@ -672,7 +701,7 @@ const GestionarContenido = () => {
                 <select
                   value={yearFilter}
                   onChange={(e) => setYearFilter(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent min-w-[120px]"
                 >
                   <option value="todos">Año (todos)</option>
                   {(activeTab === 'noticias' ? yearsNoticias : yearsEventos).map(y =>
@@ -856,8 +885,8 @@ const GestionarContenido = () => {
                         className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
                         style={{ borderLeftColor: evento.color, borderLeftWidth: '4px' }}
                       >
-                        <div className="flex items-start justify-between mb-3">
-                          <h3 className="text-lg font-medium text-gray-900 line-clamp-2">
+                        <div className="flex items-start justify-between mb-3 min-w-0">
+                          <h3 className="text-lg font-medium text-gray-900 line-clamp-2 break-words">
                             {evento.titulo}
                           </h3>
                           {getStatusBadge(estadoEventoLocal(evento))}
@@ -1026,12 +1055,6 @@ const GestionarContenido = () => {
                 >
                   Ver en sitio
                 </a>
-                <button
-                  onClick={() => handleEdit(selectedItem, itemType)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-                >
-                  Editar
-                </button>
                 {itemType === 'evento' ? (
                   <button
                     onClick={() => !isLockedEvent(selectedItem) && handleEdit(selectedItem, itemType)}
@@ -1099,6 +1122,132 @@ const GestionarContenido = () => {
               >
                 Eliminar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Panel de Acciones (móvil) */}
+      {mobileActionsOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileActionsOpen(false)} />
+          <div className="absolute inset-y-0 right-0 w-80 max-w-[85%] bg-white shadow-xl p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-semibold">Acciones</h3>
+              <button
+                onClick={() => setMobileActionsOpen(false)}
+                className="p-2 rounded-lg hover:bg-gray-100"
+                aria-label="Cerrar"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-2 space-y-2">
+              <Link
+                to="/dashboard/contenido/crear"
+                className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50"
+                onClick={() => setMobileActionsOpen(false)}
+              >
+                <PlusIcon className="h-4 w-4" />
+                Nueva noticia
+              </Link>
+              <Link
+                to="/dashboard/eventos/crear"
+                className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50"
+                onClick={() => setMobileActionsOpen(false)}
+              >
+                <PlusIcon className="h-4 w-4" />
+                Nuevo evento
+              </Link>
+              <Link
+                to="/calendario-eventos"
+                className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50"
+                onClick={() => setMobileActionsOpen(false)}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v2H5a2 2 0 00-2 2v2h18V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm14 8H3v10a2 2 0 002 2h14a2 2 0 002-2V10z"/></svg>
+                Ver calendario
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Panel de Filtros (móvil) */}
+      {mobileFiltersOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileFiltersOpen(false)} />
+          <div className="absolute inset-y-0 right-0 w-96 max-w-[90%] bg-white shadow-xl p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-semibold">Filtros</h3>
+              <button
+                onClick={() => setMobileFiltersOpen(false)}
+                className="p-2 rounded-lg hover:bg-gray-100"
+                aria-label="Cerrar"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-3">
+              {/* Búsqueda */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={`Buscar ${activeTab === 'noticias' ? 'noticia' : 'evento'}…`}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">⌘K</span>
+              </div>
+              {/* Estado */}
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                {(activeTab === 'noticias' ? statusOptionsNoticias : statusOptionsEventos).map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              {/* Mes */}
+              {typeof monthFilter !== 'undefined' && (
+                <select
+                  value={monthFilter}
+                  onChange={(e) => setMonthFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="todos">Mes (todos)</option>
+                  {[[1,'Enero'],[2,'Febrero'],[3,'Marzo'],[4,'Abril'],[5,'Mayo'],[6,'Junio'],[7,'Julio'],[8,'Agosto'],[9,'Septiembre'],[10,'Octubre'],[11,'Noviembre'],[12,'Diciembre']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              )}
+              {/* Año */}
+              {typeof yearFilter !== 'undefined' && (
+                <select
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="todos">Año (todos)</option>
+                  {(activeTab === 'noticias' ? yearsNoticias : yearsEventos).map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              )}
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterStatus('todos');
+                    if (typeof monthFilter !== 'undefined') setMonthFilter('todos');
+                    if (typeof yearFilter !== 'undefined') setYearFilter('todos');
+                  }}
+                  className="flex-1 px-3 py-2 bg-gray-100 rounded-md text-gray-700"
+                >
+                  Limpiar
+                </button>
+                <button
+                  onClick={() => setMobileFiltersOpen(false)}
+                  className="flex-1 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md"
+                >
+                  Aplicar
+                </button>
+              </div>
             </div>
           </div>
         </div>
