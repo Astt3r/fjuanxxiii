@@ -50,7 +50,7 @@ const createTables = async () => {
         nombre VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        rol ENUM('admin', 'propietario') DEFAULT 'admin',
+        rol ENUM('admin', 'propietario','contenido') DEFAULT 'admin',
         institucion VARCHAR(255),
         avatar VARCHAR(255),
         estado ENUM('activo', 'inactivo', 'pendiente') DEFAULT 'activo',
@@ -59,6 +59,21 @@ const createTables = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
+    // Intentar ampliar enum legacy (si faltaba 'contenido')
+    try {
+      const [cols] = await pool.query("SHOW COLUMNS FROM usuarios LIKE 'rol'");
+      if (cols.length) {
+        const type = cols[0].Type || '';
+        if (!/contenido/.test(type)) {
+          try {
+            await pool.execute("ALTER TABLE usuarios MODIFY rol ENUM('admin','propietario','contenido') DEFAULT 'admin'");
+            console.log('🔧 Actualizado ENUM usuarios.rol para incluir valor contenido');
+          } catch(alterErr){
+            console.warn('⚠️  No se pudo actualizar ENUM usuarios.rol:', alterErr.message);
+          }
+        }
+      }
+    } catch(enumErr){ console.warn('⚠️  No se pudo verificar ENUM usuarios.rol:', enumErr.message); }
 
     // Tabla de noticias
     await pool.execute(`

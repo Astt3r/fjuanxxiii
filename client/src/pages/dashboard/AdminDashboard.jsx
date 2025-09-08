@@ -1,122 +1,98 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
-// Eliminados imports de APIs y toast al simplificar el dashboard
 import {
-  DocumentTextIcon,
-  CalendarIcon,
-  StarIcon
+  DocumentTextIcon,   // Contenido
+  UserGroupIcon,      // Usuarios
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 
-const AdminDashboard = () => {
-  // Estadísticas y actividad eliminadas según requerimiento.
+const Card = ({ to, icon: Icon, title, description, gradient, disabled, note }) => {
+  const Wrapper = disabled ? 'div' : Link;
+  return (
+    <Wrapper
+      to={disabled ? undefined : to}
+      aria-disabled={disabled}
+      className={[
+        'group relative block rounded-2xl border border-gray-200 bg-white/90 shadow-sm p-6',
+        'hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300',
+        disabled ? 'pointer-events-none opacity-60 grayscale' : ''
+      ].join(' ')}
+      title={disabled ? 'Requiere rol administrador' : undefined}
+    >
+      {/* halo de color */}
+      <div className={`absolute -right-8 -top-10 h-28 w-28 rounded-full bg-gradient-to-br ${gradient} opacity-10`} />
+      <div className="flex items-start justify-between">
+        <div className={`inline-flex items-center justify-center rounded-xl p-3 text-white bg-gradient-to-br ${gradient}`}>
+          <Icon className="h-6 w-6" />
+        </div>
+        {disabled ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 text-gray-700 px-2.5 py-1 text-xs font-medium">
+            <LockClosedIcon className="h-3.5 w-3.5" /> Bloqueado
+          </span>
+        ) : (
+          <span className="opacity-0 group-hover:opacity-100 text-primary-700 text-sm font-medium transition">Ir →</span>
+        )}
+      </div>
 
-  const dashboardCards = [
-    {
-      title: 'Crear Noticia',
-      description: 'Crear y publicar nuevas noticias',
-      icon: StarIcon,
-      href: '/dashboard/contenido/crear',
-      color: 'bg-blue-500',
-      textColor: 'text-blue-600',
-      featured: true
-    },
-    {
-      title: 'Crear Evento',
-      description: 'Agregar eventos al calendario',
-      icon: CalendarIcon,
-      href: '/dashboard/eventos/crear',
-      color: 'bg-indigo-500',
-      textColor: 'text-indigo-600',
-      featured: true
-    }
-  ];
+      <h3 className="mt-4 text-lg font-semibold text-gray-900">{title}</h3>
+      <p className="mt-1 text-sm text-gray-600">{description}</p>
+
+      {note && (
+        <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-600">
+          {note}
+        </div>
+      )}
+    </Wrapper>
+  );
+};
+
+const AdminDashboard = () => {
+  const { user } = useAuth();
+  const isAdmin = !!user && (user.rol === 'admin' || user.rol === 'propietario');
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="container-custom py-8 max-w-7xl">
+      <div className="container-custom max-w-5xl py-8">
+        {/* Encabezado */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
         >
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Dashboard - Panel de Administración
-            </h1>
-            <p className="text-gray-600">
-              Centro de control para gestionar el contenido y configuración del sitio web de la Fundación Juan XXIII
-            </p>
-          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            Panel de creación
+          </h1>
+          <p className="mt-1 text-gray-600">
+            Accesos directos para gestionar contenido y usuarios.
+          </p>
+        </motion.div>
 
-          {/* Sistema de contenido (movido arriba) */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="mb-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold mb-2">
-                  Sistema de Contenido Unificado
-                </h3>
-                <p className="text-blue-100 mb-4">
-                  Gestiona noticias y eventos desde un solo lugar.
-                </p>
-                <div className="flex space-x-3">
-                  <Link
-                    to="/dashboard/contenido"
-                    className="inline-flex items-center px-4 py-2 bg-white text-blue-600 rounded-md font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    <DocumentTextIcon className="h-5 w-5 mr-2" />
-                    Ver Contenido
-                  </Link>
-                </div>
-              </div>
-              <div className="hidden md:block">
-                <DocumentTextIcon className="h-16 w-16 text-blue-200" />
-              </div>
-            </div>
-          </motion.div>
+        {/* Solo dos tarjetas */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        >
+          <Card
+            to="/dashboard/contenido"
+            icon={DocumentTextIcon}
+            title="Gestionar Contenido"
+            description="Para Noticias y Eventos."
+            gradient="from-blue-600 to-indigo-600"
+          />
 
-          {/* Acciones principales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {dashboardCards.map((card, index) => (
-              <motion.div
-                key={card.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-              >
-                <Link
-                  to={card.href}
-                  className={`block bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 ${
-                    card.featured ? 'ring-2 ring-purple-500 ring-opacity-50' : ''
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 rounded-lg ${card.color} bg-opacity-10`}>
-                      <card.icon className={`h-6 w-6 ${card.textColor}`} />
-                    </div>
-                    {card.featured && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                        Nuevo
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {card.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm">
-                    {card.description}
-                  </p>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Se eliminaron estadísticas y actividad reciente; cuadro azul ya movido arriba */}
+          <Card
+            to="/dashboard/usuarios"
+            icon={UserGroupIcon}
+            title="Gestionar Usuarios"
+            description="Dar acceso y permisos."
+            gradient="from-emerald-500 to-teal-600"
+            disabled={!isAdmin}
+          />
         </motion.div>
       </div>
     </div>

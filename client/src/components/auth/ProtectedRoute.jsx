@@ -29,8 +29,10 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     );
   }
 
-  // Si se requiere un rol específico y el usuario no lo tiene
-  if (requiredRole && user?.rol !== requiredRole) {
+  // Si se requiere uno o varios roles y el usuario no los tiene
+  if (requiredRole) {
+    const rolesArray = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    if (!rolesArray.includes(user?.rol)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
@@ -52,10 +54,7 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Acceso Restringido
           </h1>
-          <p className="text-gray-600 mb-6">
-            No tienes permisos para acceder a esta sección. 
-            Se requiere el rol de <strong>{requiredRole}</strong>.
-          </p>
+      <p className="text-gray-600 mb-6">No tienes permisos para acceder a esta sección. Se requiere rol: <strong>{rolesArray.join(' o ')}</strong>.</p>
           <div className="space-y-3">
             <button
               onClick={() => window.history.back()}
@@ -68,6 +67,7 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
         </div>
       </div>
     );
+    }
   }
 
   // Si todo está bien, mostrar el contenido

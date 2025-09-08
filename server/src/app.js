@@ -18,6 +18,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const eventsRoutes = require('./routes/events');
 const protocolsRoutes = require('./routes/protocols');
+const adminUsersRoutes = require('./routes/adminUsersRoutes');
 // const staffRoutes = require('./routes/staff'); // (unused) desactivado hasta que se requiera
 const { pool } = require('./config/database');
 const corsMw = require('./security/cors');
@@ -127,6 +128,7 @@ app.use('/api/schools', colegiosRoutes); // Alias para compatibilidad
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/events', eventsRoutes);
+app.use('/api/admin/usuarios', adminUsersRoutes);
 // app.use('/api/admin/invitations', adminInvitationsRoutes); // eliminado: invitations removidas
 // Reactivamos endpoints de protocolos (archivos ahora viven en /uploads/protocolos)
 app.use('/api/protocols', protocolsRoutes);

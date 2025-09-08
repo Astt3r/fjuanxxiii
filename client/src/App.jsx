@@ -34,6 +34,7 @@ import CrearEvento from './pages/dashboard/CrearEvento';
 import EditarNoticia from './pages/dashboard/EditarNoticia';
 import EditarEvento from './pages/dashboard/EditarEvento';
 import GestionarContenido from './pages/dashboard/GestionarContenido';
+import UsuariosPanel from './pages/dashboard/UsuariosPanel';
 import DetalleNoticia from './pages/dashboard/DetalleNoticia';
 import NotFound from './pages/NotFound';
 
@@ -82,6 +83,14 @@ function App() {
                           <CrearNoticiaAvanzada />
                         </ProtectedRoute>
                       } 
+                    />
+                    <Route
+                      path="/dashboard/usuarios"
+                      element={
+                        <ProtectedRoute requiredRole={['admin','propietario']}>
+                          <UsuariosPanel />
+                        </ProtectedRoute>
+                      }
                     />
                     <Route 
                       path="/dashboard/contenido" 
