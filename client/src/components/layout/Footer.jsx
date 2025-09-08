@@ -1,15 +1,366 @@
-import React from 'react';
+// Footer.jsx
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, animate } from 'framer-motion';
+
+const ASTT3R_URL = 'astt3r.github.io'; 
+
+// Huevo con física (inercia + rebote usando Framer Motion)
+function DevEgg() {
+  const size = 64; // diámetro del huevo en px
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotate = useMotionValue(0);
+
+  const [hover, setHover] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [skin] = useState(() => Math.floor(Math.random() * 3)); // 0..2
+
+  // Física
+  const velRef = useRef({ vx: 200 + Math.random() * 120, vy: 0 });
+  const lastRef = useRef(null);
+  const rafRef = useRef(null);
+  const boundsRef = useRef({ minX: 8, minY: 8, maxX: 0, maxY: 0 });
+
+  // Click / tap
+  const downRef = useRef({ t: 0, x: 0, y: 0 });
+  const lastTapRef = useRef(0);
+
+  // Confetti canvas
+  const canvasRef = useRef(null);
+  const confettiRef = useRef([]);
+  const confettiRAF = useRef(null);
+  const uid = useRef(Math.random().toString(36).slice(2, 8)).current;
+  const ASTT3R_URL = 'https://astt3r.github.io/';
+
+  // ---------- Confetti ----------
+  const colors = [['#7c3aed', '#f43f5e', '#10b981', '#f59e0b', '#3b82f6'], // paleta 1
+                  ['#ef4444', '#f59e0b', '#84cc16', '#06b6d4', '#8b5cf6'], // paleta 2
+                  ['#fb7185', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa']][skin];
+
+  const ensureCanvas = () => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    c.width = Math.floor(w * dpr);
+    c.height = Math.floor(h * dpr);
+    c.style.width = w + 'px';
+    c.style.height = h + 'px';
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
+  const confettiLoop = () => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const arr = confettiRef.current;
+    if (!arr.length) {
+      confettiRAF.current = null;
+      ctx.clearRect(0, 0, c.width, c.height);
+      return;
+    }
+    ctx.clearRect(0, 0, c.width, c.height);
+    const g = 1800; // gravedad confetti
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const p = arr[i];
+      const dt = 1 / 60;
+      p.vy += g * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.rot += p.vr * dt;
+      p.life -= dt;
+      if (p.life <= 0 || p.y > window.innerHeight + 40) {
+        arr.splice(i, 1);
+        continue;
+      }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life / p.ttl));
+      ctx.fillStyle = p.color;
+      const w = p.size * (p.shape === 'rect' ? 1 : 0.9);
+      const h = p.size * (p.shape === 'rect' ? 0.6 : 0.9);
+      if (p.shape === 'rect') ctx.fillRect(-w / 2, -h / 2, w, h);
+      else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    confettiRAF.current = requestAnimationFrame(confettiLoop);
+  };
+
+  const burstConfetti = () => {
+    ensureCanvas();
+    const cx = x.get() + size / 2;
+    const cy = y.get() + size / 2;
+    const n = 80;
+    for (let i = 0; i < n; i++) {
+      const ang = (Math.PI * 2 * i) / n + Math.random() * 0.6;
+      const spd = 400 + Math.random() * 900;
+      confettiRef.current.push({
+        x: cx,
+        y: cy,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd - 400,
+        size: 6 + Math.random() * 10,
+        rot: Math.random() * Math.PI * 2,
+        vr: (-4 + Math.random() * 8) * (Math.random() > 0.5 ? 1 : -1),
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 1.2 + Math.random() * 0.8,
+        ttl: 2.0,
+        shape: Math.random() > 0.5 ? 'rect' : 'dot',
+      });
+    }
+    if (!confettiRAF.current) confettiRAF.current = requestAnimationFrame(confettiLoop);
+  };
+  // --------------------------------
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const calcBounds = () => {
+      boundsRef.current = {
+        minX: 8,
+        minY: 8,
+        maxX: Math.max(8, window.innerWidth - size - 8),
+        maxY: Math.max(8, window.innerHeight - size - 8),
+      };
+      // corrige si quedó fuera
+      x.set(Math.max(boundsRef.current.minX, Math.min(boundsRef.current.maxX, x.get())));
+      y.set(Math.max(boundsRef.current.minY, Math.min(boundsRef.current.maxY, y.get())));
+      ensureCanvas();
+    };
+
+    calcBounds();
+
+    // posición inicial
+    const startX = Math.min(boundsRef.current.maxX, window.innerWidth - size - 24);
+    x.set(startX);
+    y.set(-size * 1.2);
+
+    lastRef.current = performance.now();
+    const g = 2000;             // gravedad px/s^2
+    const restitution = 0.68;   // rebote
+    const airDrag = 0.0005;     // rozamiento aire
+    const floorFriction = 0.015;// fricción suelo
+
+    const loop = (t) => {
+      const last = lastRef.current;
+      lastRef.current = t;
+      const dt = Math.min(0.032, (t - last) / 1000) || 0.016;
+
+      if (!dragging) {
+        let { vx, vy } = velRef.current;
+        let nx = x.get();
+        let ny = y.get();
+
+        // Física
+        vy += g * dt;
+        vx *= (1 - airDrag);
+        vy *= (1 - airDrag);
+
+        nx += vx * dt;
+        ny += vy * dt;
+
+        const { minX, minY, maxX, maxY } = boundsRef.current;
+
+        // Colisiones laterales
+        if (nx <= minX) {
+          nx = minX; vx = -vx * restitution; burstConfetti();
+        } else if (nx >= maxX) {
+          nx = maxX; vx = -vx * restitution; burstConfetti();
+        }
+        // Techo/suelo
+        if (ny <= minY) {
+          ny = minY; vy = -vy * restitution; burstConfetti();
+        } else if (ny >= maxY) {
+          ny = maxY; vy = -vy * restitution;
+          vx *= (1 - floorFriction);
+          burstConfetti();
+        }
+
+        x.set(nx);
+        y.set(ny);
+        velRef.current = { vx, vy };
+
+        // Rotación proporcional a vx
+        const spinPerSec = (vx / size) * 180; // º/s
+        rotate.set(rotate.get() + spinPerSec * dt);
+      }
+
+      rafRef.current = requestAnimationFrame(loop);
+    };
+
+    rafRef.current = requestAnimationFrame(loop);
+
+    const onResize = () => {
+      calcBounds();
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('resize', onResize);
+      if (confettiRAF.current) cancelAnimationFrame(confettiRAF.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onPointerDown = (e) => {
+    downRef.current = { t: performance.now(), x: e.clientX, y: e.clientY };
+  };
+
+  const onPointerUp = (e) => {
+    const d = downRef.current;
+    const dt = performance.now() - d.t;
+    const dist = Math.hypot(e.clientX - d.x, e.clientY - d.y);
+
+    // Doble tap móvil
+    const now = performance.now();
+    if (now - lastTapRef.current < 300) {
+      burstConfetti();
+      lastTapRef.current = 0;
+      return;
+    }
+    lastTapRef.current = now;
+
+    // Click “seco” (abre URL)
+    if (!dragging && dt < 200 && dist < 6) {
+      window.open(ASTT3R_URL, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const onDoubleClick = () => {
+    burstConfetti();
+  };
+
+  // ---------- SVG del huevo (3 skins de Pascua, sin fondo) ----------
+  const EggSVG = () => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 130"
+      className="drop-shadow-[0_3px_8px_rgba(0,0,0,0.25)]"
+      aria-label="Easter egg"
+    >
+      <defs>
+        <linearGradient id={`eggrad-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={skin === 0 ? '#ff9a9e' : skin === 1 ? '#a7f3d0' : '#bae6fd'} />
+          <stop offset="100%" stopColor={skin === 0 ? '#fad0c4' : skin === 1 ? '#fef3c7' : '#e9d5ff'} />
+        </linearGradient>
+
+        <pattern id={`zigzag-${uid}`} width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M0 10 L5 5 L10 15 L15 5 L20 10" stroke="#7c3aed" strokeWidth="3" fill="none" />
+        </pattern>
+        <pattern id={`dots-${uid}`} width="14" height="14" patternUnits="userSpaceOnUse">
+          <circle cx="7" cy="7" r="2.2" fill="#10b981" />
+        </pattern>
+        <pattern id={`sprinkles-${uid}`} width="12" height="12" patternUnits="userSpaceOnUse">
+          <rect width="12" height="12" fill="none" />
+          <rect x="2" y="2" width="2" height="6" fill="#ef4444" transform="rotate(20 3 5)" />
+          <rect x="6" y="1" width="2" height="6" fill="#f59e0b" transform="rotate(-20 7 4)" />
+          <rect x="8" y="5" width="2" height="6" fill="#3b82f6" transform="rotate(15 9 8)" />
+        </pattern>
+        <pattern id={`stars-${uid}`} width="18" height="18" patternUnits="userSpaceOnUse">
+          <polygon points="9,1 11,7 17,7 12,11 14,17 9,13 4,17 6,11 1,7 7,7" fill="#f59e0b"/>
+        </pattern>
+
+        <clipPath id={`eggshape-${uid}`}>
+          <path d="M50 5 C 30 5, 15 25, 15 50 C 15 80, 35 110, 50 125 C 65 110, 85 80, 85 50 C 85 25, 70 5, 50 5 Z" />
+        </clipPath>
+      </defs>
+
+      {/* Base */}
+      <path d="M50 5 C 30 5, 15 25, 15 50 C 15 80, 35 110, 50 125 C 65 110, 85 80, 85 50 C 85 25, 70 5, 50 5 Z" fill={`url(#eggrad-${uid})`} />
+
+      {/* Skins */}
+      <g clipPath={`url(#eggshape-${uid})`}>
+        {skin === 0 && (
+          <>
+            <rect x="0" y="36" width="100" height="14" fill={`url(#zigzag-${uid})`} opacity="0.95" />
+            <rect x="0" y="60" width="100" height="16" fill="#fde68a" opacity="0.95" />
+            <rect x="0" y="86" width="100" height="18" fill={`url(#dots-${uid})`} opacity="0.95" />
+          </>
+        )}
+        {skin === 1 && (
+          <>
+            <rect x="0" y="34" width="100" height="18" fill={`url(#sprinkles-${uid})`} opacity="0.95" />
+            <rect x="0" y="62" width="100" height="16" fill="#fca5a5" opacity="0.9" />
+            <rect x="0" y="86" width="100" height="18" fill="#93c5fd" opacity="0.95" />
+          </>
+        )}
+        {skin === 2 && (
+          <>
+            <rect x="0" y="34" width="100" height="18" fill={`url(#stars-${uid})`} opacity="0.9" />
+            <rect x="0" y="62" width="100" height="16" fill="#86efac" opacity="0.9" />
+            <rect x="0" y="86" width="100" height="18" fill="#f9a8d4" opacity="0.9" />
+          </>
+        )}
+      </g>
+
+      {/* Contorno */}
+      <path
+        d="M50 5 C 30 5, 15 25, 15 50 C 15 80, 35 110, 50 125 C 65 110, 85 80, 85 50 C 85 25, 70 5, 50 5 Z"
+        fill="none"
+        stroke="rgba(0,0,0,0.18)"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[60] pointer-events-none">
+      {/* lienzo del confetti (debajo) */}
+      <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none" />
+      <motion.div
+        className="pointer-events-auto select-none fixed"
+        style={{ x, y, rotate, width: size, height: size }}
+        drag
+        dragMomentum={false}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onDoubleClick={onDoubleClick}
+        onDragStart={() => setDragging(true)}
+        onDrag={(e, info) => {
+          velRef.current.vx = info.velocity.x;
+          velRef.current.vy = info.velocity.y;
+        }}
+        onDragEnd={(e, info) => {
+          velRef.current.vx = info.velocity.x;
+          velRef.current.vy = info.velocity.y;
+          setTimeout(() => setDragging(false), 50);
+        }}
+        onHoverStart={() => setHover(true)}
+        onHoverEnd={() => setHover(false)}
+      >
+        <div className="relative">
+          {/* halo suave, sin fondo blanco */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ filter: 'blur(18px)', opacity: 0.15, background: 'radial-gradient(closest-side, rgba(0,0,0,0.25), transparent)' }}
+          />
+          <EggSVG />
+          {hover && (
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md bg-gray-900 text-white text-[11px] shadow whitespace-nowrap">
+              página hecha por Astt3r
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   const footerLinks = {
-    institucional: [
-      { label: 'Nosotros', to: '/nuestra-historia' },
-
-    ],
+    institucional: [{ label: 'Nosotros', to: '/nuestra-historia' }],
     servicios: [
       { label: 'Pastoral Educativa', to: '/pastoral' },
       { label: 'Noticias', to: '/noticias' },
@@ -60,6 +411,29 @@ const Footer = () => {
     website: 'www.fjuanxxiii.cl',
   };
 
+  // --- Trigger secreto del huevo: Alt+Shift+Click o triple click ---
+  const [showEgg, setShowEgg] = useState(false);
+  const clicksRef = useRef(0);
+  const timerRef = useRef(null);
+
+  const secretTrigger = (e) => {
+    if (e.altKey && e.shiftKey) {
+      setShowEgg(true);
+      return;
+    }
+    // triple click en < 600ms
+    clicksRef.current += 1;
+    clearTimeout(timerRef.current);
+    if (clicksRef.current >= 3) {
+      clicksRef.current = 0;
+      setShowEgg(true);
+    } else {
+      timerRef.current = setTimeout(() => {
+        clicksRef.current = 0;
+      }, 600);
+    }
+  };
+
   return (
     <footer className="bg-primary-900 text-white">
       {/* Sección principal del footer */}
@@ -82,10 +456,10 @@ const Footer = () => {
                 <p className="text-gray-400 text-sm">Educación con valores</p>
               </div>
             </Link>
-            
+
             <p className="text-gray-300 mb-6 leading-relaxed">
-              Comprometidos con la educación integral y la formación en valores 
-              cristianos, acompañamos a las comunidades educativas en su misión 
+              Comprometidos con la educación integral y la formación en valores
+              cristianos, acompañamos a las comunidades educativas en su misión
               de formar personas íntegras y solidarias.
             </p>
 
@@ -188,16 +562,18 @@ const Footer = () => {
                 ))}
               </div>
             </div>
-
-
           </div>
         </motion.div>
       </div>
 
-      {/* Copyright */}
+      {/* Copyright + trigger secreto */}
       <div className="bg-primary-800 py-4">
         <div className="container-custom">
-          <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-400">
+          <div
+            className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-400 select-none"
+            onClick={secretTrigger}
+            title="©"
+          >
             <p>
               © {currentYear} Fundación Juan XXIII. Todos los derechos reservados.
             </p>
@@ -212,6 +588,9 @@ const Footer = () => {
           </div>
         </div>
       </div>
+
+      {/* Render del huevo si fue activado */}
+      {showEgg && <DevEgg />}
     </footer>
   );
 };
