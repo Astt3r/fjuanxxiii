@@ -71,4 +71,41 @@ router.post('/', authRoutes.verifyToken, requireRole('admin','propietario'), asy
   }
 });
 
+// DELETE (soft) usuario: sólo admin/propietario. Reglas:
+// - No permite borrarse a sí mismo
+// - Un admin NO puede eliminar a otro admin ni a un propietario
+// - Un propietario puede eliminar admins (si se quisiera cambiar, ajustar regla)
+// - Sólo se realiza soft delete (estado = 'inactivo') para preservar referencias
+router.delete('/:id', authRoutes.verifyToken, requireRole('admin','propietario'), async (req,res) => {
+  try {
+    const id = parseInt(req.params.id,10);
+    if(!id) return res.status(400).json({ ok:false, error:'ID inválido' });
+
+    if(id === req.user.id) return res.status(400).json({ ok:false, error:'No puedes eliminar tu propia cuenta' });
+
+    const rows = await db.query('SELECT id, nombre, email, rol, estado, ultimo_acceso, created_at FROM usuarios WHERE id=?',[id]);
+    if(!rows.length) return res.status(404).json({ ok:false, error:'Usuario no encontrado' });
+    const target = rows[0];
+
+    // Restricciones de jerarquía
+    if(target.rol === 'propietario') {
+      return res.status(403).json({ ok:false, error:'No se puede eliminar un propietario' });
+    }
+    if(target.rol === 'admin' && req.user.rol !== 'propietario') {
+      return res.status(403).json({ ok:false, error:'Sólo un propietario puede eliminar un admin' });
+    }
+
+    if(target.estado === 'inactivo') {
+      return res.json({ ok:true, deleted:false, usuario: target });
+    }
+
+    await db.query("UPDATE usuarios SET estado='inactivo' WHERE id=?", [id]);
+    const updated = { ...target, estado: 'inactivo' };
+    return res.json({ ok:true, deleted:true, usuario: updated });
+  } catch(err){
+    console.error('adminUsers DELETE error', err.message);
+    return res.status(500).json({ ok:false, error:'Error interno' });
+  }
+});
+
 module.exports = router;

@@ -20,15 +20,15 @@ const validateEventPayload = (body, isUpdate = false) => {
 // LISTAR EVENTOS (con filtros opcionales)
 router.get('/', async (req, res) => {
   try {
-    const { from, to, tipo, estado, limit = 100, offset = 0 } = req.query;
+  const { from, to, tipo, estado, includeEliminados, limit = 100, offset = 0 } = req.query;
 
-    let query = `SELECT id, titulo, descripcion, fecha_evento, hora_inicio, hora_fin, ubicacion, color, tipo, estado, creado_por, created_at, updated_at FROM eventos WHERE 1=1`;
+  let query = `SELECT id, titulo, descripcion, fecha_evento, hora_inicio, hora_fin, ubicacion, color, tipo, estado, creado_por, created_at, updated_at FROM eventos WHERE 1=1`;
     const params = [];
 
     if (from) { query += ' AND fecha_evento >= ?'; params.push(from); }
     if (to) { query += ' AND fecha_evento <= ?'; params.push(to); }
     if (tipo) { query += ' AND tipo = ?'; params.push(tipo); }
-    if (estado) { query += ' AND estado = ?'; params.push(estado); }
+  if (estado) { query += ' AND estado = ?'; params.push(estado); } else if(!includeEliminados){ query += " AND estado <> 'eliminado'"; }
 
     query += ' ORDER BY fecha_evento ASC, hora_inicio ASC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-  const rows = await db.query(`SELECT * FROM eventos WHERE id = ?`, [id]);
+  const rows = await db.query(`SELECT * FROM eventos WHERE id = ? AND estado <> 'eliminado'`, [id]);
   if (rows.length === 0) return R.fail(res, 'Evento no encontrado', 404);
   R.ok(res, rows[0]);
   } catch (error) {
@@ -131,16 +131,18 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // ELIMINAR EVENTO
+// Soft delete eventos
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-  const existing = await db.query(`SELECT id FROM eventos WHERE id = ?`, [id]);
-  if (existing.length === 0) return R.fail(res, 'Evento no encontrado', 404);
-    await db.query(`DELETE FROM eventos WHERE id = ?`, [id]);
-  R.ok(res, { id, deleted: true });
+    const existing = await db.query(`SELECT id, estado FROM eventos WHERE id = ?`, [id]);
+    if (existing.length === 0) return R.fail(res, 'Evento no encontrado', 404);
+    if(existing[0].estado === 'eliminado') return R.ok(res,{ id, deleted:false, already:true });
+    await db.query(`UPDATE eventos SET estado='eliminado' WHERE id = ?`, [id]);
+    R.ok(res, { id, deleted: true, soft:true });
   } catch (error) {
     console.error('Error eliminando evento:', error);
-  R.fail(res, 'Error al eliminar el evento', 500, { error: error.message });
+    R.fail(res, 'Error al eliminar el evento', 500, { error: error.message });
   }
 });
 

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PlusIcon, UserGroupIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, UserGroupIcon, XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const DAILY_LIMIT = 5;
 const MAIL_DOMAIN =
@@ -9,6 +10,7 @@ const MAIL_DOMAIN =
   'fundacionjuanxxiii.cl';
 
 const UsuariosPanel = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,6 +25,8 @@ const UsuariosPanel = () => {
   const [lastCreated, setLastCreated] = useState(null);
 
   const [search, setSearch] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // usuario a confirmar
 
   // Utils
   const slugify = (s = '') =>
@@ -92,6 +96,7 @@ const UsuariosPanel = () => {
 
   const filtered = users.filter((u) => {
     const q = search.trim().toLowerCase();
+  if(u.estado !== 'activo') return false; // ocultar inactivos
     if (!q) return true;
     return [u.nombre, u.email, u.rol, u.estado]
       .filter(Boolean)
@@ -122,6 +127,25 @@ const UsuariosPanel = () => {
     }
   };
 
+  const requestDelete = (user) => {
+    setConfirmDelete(user);
+  };
+
+  const performDelete = async () => {
+    if(!confirmDelete) return;
+    try {
+      setDeletingId(confirmDelete.id);
+      setError('');
+      await api.delete(`/admin/usuarios/${confirmDelete.id}`);
+      setConfirmDelete(null);
+      await loadUsers();
+    } catch (err) {
+      setError('No se pudo eliminar el usuario');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="container-custom py-8 max-w-7xl">
@@ -140,7 +164,7 @@ const UsuariosPanel = () => {
                 <span className="font-medium">Rol:</span> {lastCreated.rol}
               </p>
               <p className="mt-2 text-gray-700">
-                Recuerda compartir la contraseña que generaste. Por seguridad no se almacena ni se vuelve a mostrar.
+                Recuerda compartir la contraseña que generaste con dicho usuario. La opción para generar una nueva no está disponible por el momento.
               </p>
               <button onClick={() => setLastCreated(null)} className="mt-3 inline-flex items-center text-xs text-emerald-700 hover:underline">
                 Ocultar
@@ -217,10 +241,13 @@ const UsuariosPanel = () => {
                       <th className="px-4 py-3 text-left font-medium text-gray-600">Rol</th>
                       <th className="px-4 py-3 text-left font-medium text-gray-600">Estado</th>
                       <th className="px-4 py-3 text-left font-medium text-gray-600">Último acceso</th>
+                      <th className="px-4 py-3 text-right font-medium text-gray-600">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filtered.map((u) => (
+                    {filtered.map((u) => {
+                      const selfProtected = currentUser && u.id === currentUser.id && ['admin','propietario'].includes(currentUser.rol);
+                      return (
                       <tr key={u.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium text-gray-900">{u.nombre}</td>
                         <td className="px-4 py-3 text-gray-700">{u.email}</td>
@@ -249,8 +276,26 @@ const UsuariosPanel = () => {
                         <td className="px-4 py-3 text-gray-500 text-xs">
                           {u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CL') : '—'}
                         </td>
+                        <td className="px-4 py-3 text-right">
+                          {/* Eliminar: Sólo mostrar si rol actual es admin/propietario y restricciones lado backend se aplican */}
+                          <button
+                            onClick={() => !selfProtected && requestDelete(u)}
+                            disabled={deletingId === u.id || u.estado === 'inactivo' || selfProtected}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs border transition-colors ${
+                              selfProtected
+                                ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
+                                : u.estado === 'inactivo'
+                                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'border-red-300 text-red-600 hover:bg-red-50'
+                            }`}
+                            title={selfProtected ? 'No puedes eliminar tu propia cuenta' : (u.estado === 'inactivo' ? 'Ya inactivo' : 'Eliminar (inactivar)')}
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                            {selfProtected ? 'Protegido' : (deletingId === u.id ? '...' : 'Eliminar')}
+                          </button>
+                        </td>
                       </tr>
-                    ))}
+                    ); })}
                   </tbody>
                 </table>
               </div>
@@ -329,7 +374,7 @@ const UsuariosPanel = () => {
                   )}
                 </div>
                 <p className="text-xs text-amber-600 mt-2">
-                  Entrega esta contraseña al usuario y recomiéndale cambiarla al ingresar.
+                  Entrega esta contraseña al usuario. 
                 </p>
               </div>
 
@@ -356,6 +401,30 @@ const UsuariosPanel = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmación eliminar */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmDelete(null)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold mb-2">Eliminar usuario</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              ¿Seguro que deseas inactivar al usuario <span className="font-medium">{confirmDelete.nombre}</span>? Esta acción
+              deshabilitará su acceso. No se borra físicamente para preservar historial.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">Cancelar</button>
+              <button
+                onClick={performDelete}
+                disabled={deletingId === confirmDelete.id}
+                className="px-4 py-2 text-sm rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {deletingId === confirmDelete.id ? 'Eliminando...' : 'Confirmar'}
+              </button>
+            </div>
           </div>
         </div>
       )}

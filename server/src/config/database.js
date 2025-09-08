@@ -85,7 +85,7 @@ const createTables = async () => {
         contenido LONGTEXT NOT NULL,
         imagen VARCHAR(255),
         categoria VARCHAR(100),
-        estado ENUM('borrador', 'publicado', 'archivado') DEFAULT 'borrador',
+  estado ENUM('borrador', 'publicado', 'archivado', 'eliminado') DEFAULT 'borrador',
         destacado BOOLEAN DEFAULT FALSE,
         autor_id INT NOT NULL,
         fecha_publicacion TIMESTAMP NULL,
@@ -97,6 +97,17 @@ const createTables = async () => {
         INDEX idx_fecha_publicacion (fecha_publicacion)
       )
     `);
+    // Asegurar enum noticias.estado incluye 'eliminado'
+    try {
+      const [colNot] = await pool.query("SHOW COLUMNS FROM noticias LIKE 'estado'");
+      if(colNot.length){
+        const type = colNot[0].Type||'';
+        if(!/eliminado/.test(type)){
+          try { await pool.execute("ALTER TABLE noticias MODIFY estado ENUM('borrador','publicado','archivado','eliminado') DEFAULT 'borrador'"); }
+          catch(alterErr){ console.warn('⚠️  No se pudo actualizar ENUM noticias.estado:', alterErr.message); }
+        }
+      }
+    } catch(enumErr){ console.warn('⚠️  No se pudo verificar ENUM noticias.estado:', enumErr.message); }
 
     // Tabla de eventos del calendario
     await pool.execute(`
@@ -110,7 +121,7 @@ const createTables = async () => {
         ubicacion VARCHAR(255),
         color VARCHAR(7) DEFAULT '#3B82F6',
         tipo ENUM('evento', 'reunion', 'celebracion', 'academico') DEFAULT 'evento',
-        estado ENUM('activo', 'cancelado', 'pospuesto') DEFAULT 'activo',
+  estado ENUM('activo', 'cancelado', 'pospuesto', 'eliminado') DEFAULT 'activo',
         creado_por INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -119,6 +130,17 @@ const createTables = async () => {
         INDEX idx_estado (estado)
       )
     `);
+    // Asegurar enum eventos.estado incluye 'eliminado'
+    try {
+      const [colEvt] = await pool.query("SHOW COLUMNS FROM eventos LIKE 'estado'");
+      if(colEvt.length){
+        const type = colEvt[0].Type||'';
+        if(!/eliminado/.test(type)){
+          try { await pool.execute("ALTER TABLE eventos MODIFY estado ENUM('activo','cancelado','pospuesto','eliminado') DEFAULT 'activo'"); }
+          catch(alterErr){ console.warn('⚠️  No se pudo actualizar ENUM eventos.estado:', alterErr.message); }
+        }
+      }
+    } catch(enumErr){ console.warn('⚠️  No se pudo verificar ENUM eventos.estado:', enumErr.message); }
 
     // Tabla de colegios
     await pool.execute(`

@@ -81,7 +81,7 @@ async function ensureUniqueSlug(initial){
 router.get('/', async (req,res)=>{
   try {
     const { categoria, destacada, limite=10, pagina=1 } = req.query;
-    let sql = `SELECT ${BASE_FIELDS}, u.nombre as autor FROM noticias n LEFT JOIN usuarios u ON n.autor_id=u.id WHERE n.estado='publicado'`;
+  let sql = `SELECT ${BASE_FIELDS}, u.nombre as autor FROM noticias n LEFT JOIN usuarios u ON n.autor_id=u.id WHERE n.estado='publicado'`;
     const params = [];
     if(categoria){ sql+=' AND n.categoria=?'; params.push(categoria); }
     if(destacada){ sql+=' AND n.destacado=?'; params.push(destacada==='true'); }
@@ -159,7 +159,7 @@ router.get('/admin/list', authenticateToken, async (req,res)=>{
 // ---------------------------------------------------------------
 router.get('/featured', async (_req,res)=>{
   try {
-    const rows = await db.query(`SELECT ${BASE_FIELDS}, u.nombre as autor FROM noticias n LEFT JOIN usuarios u ON n.autor_id=u.id WHERE n.estado='publicado' AND n.destacado=1 ORDER BY n.fecha_publicacion DESC`);
+  const rows = await db.query(`SELECT ${BASE_FIELDS}, u.nombre as autor FROM noticias n LEFT JOIN usuarios u ON n.autor_id=u.id WHERE n.estado='publicado' AND n.destacado=1 ORDER BY n.fecha_publicacion DESC`);
     R.ok(res, rows);
   } catch(e){ console.error(e); R.fail(res,'Error al obtener noticias destacadas',500,{error:e.message}); }
 });
@@ -167,7 +167,7 @@ router.get('/featured', async (_req,res)=>{
 router.get('/:id', async (req,res)=>{
   try {
     const { id }=req.params;
-    const rows=await db.query(`SELECT ${BASE_FIELDS}, u.nombre as autor FROM noticias n LEFT JOIN usuarios u ON n.autor_id=u.id WHERE n.id=? AND n.estado='publicado'`,[id]);
+  const rows=await db.query(`SELECT ${BASE_FIELDS}, u.nombre as autor FROM noticias n LEFT JOIN usuarios u ON n.autor_id=u.id WHERE n.id=? AND n.estado='publicado'`,[id]);
     if(!rows.length) return R.fail(res,'Noticia no encontrada',404);
     const imagenes=await db.query('SELECT id, filename, url, orden FROM noticias_imagenes WHERE noticia_id=? ORDER BY orden, id',[id]);
     R.ok(res,{...rows[0], imagenes});
@@ -271,15 +271,16 @@ router.put('/:id', authenticateToken, async (req,res)=>{
   } catch(e){ try { await connection.rollback(); } catch { /* ignore rollback error */ } connection.release(); console.error(e); R.fail(res,'Error al actualizar',500,{error:e.message}); }
 });
 
+// Soft delete: marcar estado='eliminado'
 router.delete('/:id', authenticateToken, async (req,res)=>{
   try {
     const { id }=req.params;
-    const ex = await db.query('SELECT autor_id FROM noticias WHERE id=?',[id]);
+    const ex = await db.query('SELECT autor_id, estado FROM noticias WHERE id=?',[id]);
     if(!ex.length) return R.fail(res,'Noticia no encontrada',404);
     if(!['admin','propietario'].includes(req.user.rol) && ex[0].autor_id!==req.user.id) return R.fail(res,'Sin permisos',403);
-    await db.query('DELETE FROM noticias WHERE id=?',[id]);
-    await db.query('DELETE FROM noticias_imagenes WHERE noticia_id=?',[id]);
-    R.ok(res,{ deleted:true });
+    if(ex[0].estado==='eliminado') return R.ok(res,{ deleted:false, already:true });
+    await db.query("UPDATE noticias SET estado='eliminado' WHERE id=?",[id]);
+    R.ok(res,{ deleted:true, soft:true });
   } catch(e){ console.error(e); R.fail(res,'Error al eliminar',500,{error:e.message}); }
 });
 
