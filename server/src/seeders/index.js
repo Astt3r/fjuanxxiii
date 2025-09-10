@@ -1,12 +1,13 @@
 const { query } = require('../config/database');
-const bcrypt = require('bcrypt');
+const { genSalt, hash } = require('../utils/password');
 
 const seedDatabase = async () => {
   try {
     console.log('🌱 Iniciando seeder de la base de datos...');
 
     // 1. Crear usuarios administradores
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+  const salt = await genSalt(10);
+  const hashedPassword = await hash('admin123', salt);
     
     await query(`
       INSERT IGNORE INTO usuarios (nombre, email, password, rol, estado) VALUES 
@@ -170,7 +171,7 @@ const seedDatabase = async () => {
       ('redes_youtube', 'https://www.youtube.com/channel/UC8UBYBwR1NFtAk2S3QZPXIQ', 'URL de YouTube', 'texto')
     `);
 
-    console.log('✅ Seeder completado exitosamente');
+  console.log('Seeder completado exitosamente');
     console.log('📝 Datos iniciales cargados:');
     console.log('   - 2 usuarios administradores');
     console.log('   - 3 funcionarios principales');

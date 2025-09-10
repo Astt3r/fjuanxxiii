@@ -2,51 +2,88 @@
 require('dotenv').config();
 const path = require('path');
 const http = require('http');
+const cors = require('cors');
+
 const app = require('./app');
 const { validateEnv } = require('./config/validateEnv');
 
 validateEnv();
 
-const env = process.env.NODE_ENV || 'development';
+const env   = process.env.NODE_ENV || 'development';
 const isTest = env === 'test';
 const isProd = env === 'production';
-const PORT = Number(process.env.PORT) || 5003;
+// Puerto (en producción esperamos que Passenger lo inyecte)
+// Se reubica más abajo junto al bloque de arranque para validar correctamente.
 
-// 🔐 Trust proxy NUNCA como true global; en prod usa 'loopback', en test/desa false
-app.set('trust proxy', isProd ? 'loopback' : false);
+// 1) proxy
+app.set('trust proxy', 1);
 
-// 🔹 Middlewares/estáticos SIEMPRE antes de listen
-app.use(
-  '/uploads',
-  require('express').static(path.join(__dirname, '..', 'uploads'), {
+// 2) Enforce HTTPS (opcional vía env)
+if (String(process.env.ENFORCE_HTTPS).toLowerCase() === 'true') {
+  app.use((req, res, next) => {
+    if (req.secure) return next();
+    return res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+  });
+}
+
+// 3) CORS
+const allowed = (process.env.CORS_ORIGINS
+  || process.env.CLIENT_URL
+  || process.env.FRONTEND_URL
+  || ''
+).split(',')
+ .map(s => s.trim())
+ .filter(Boolean);
+
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);        // curl/health
+    if (allowed.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS bloqueado: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+
+// 4) estáticos
+app.use('/uploads', require('express').static(
+  path.join(__dirname, '..', 'uploads'),
+  {
     dotfiles: 'ignore',
     index: false,
     etag: true,
     maxAge: '1h',
     setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
-  }),
-);
+  }
+));
 
-// 🔹 Crea el server explícitamente (evita doble listen)
+// 5) server
 const server = http.createServer(app);
 
+// listen mínimo y seguro para Passenger
+const PORT = process.env.PORT || (!isProd ? 5003 : undefined); // en prod debe venir de Passenger
+
 if (!isTest) {
-  console.log('🔄 Iniciando servidor...');
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor ejecutándose en 0.0.0.0:${PORT}`);
-    console.log(`📊 Modo: ${env}`);
-    console.log(`🌐 Cliente permitido: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
+  if (isProd && !process.env.PORT) {
+    console.error('❌ En producción falta PORT (Passenger). Revisa la app en cPanel.');
+    process.exit(1);
+  }
+
+  server.listen(PORT, () => {
+  console.log(`Servidor escuchando en puerto ${PORT}`);
   });
 
   server.on('error', (err) => {
     console.error('❌ Error del servidor:', err);
-    if (err.code === 'EADDRINUSE') console.error(`❌ Puerto ${PORT} ya está en uso`);
   });
 
+  // timeouts recomendados
   server.headersTimeout = 65000;
   server.keepAliveTimeout = 60000;
   server.requestTimeout = 0;
 
+  // apagado ordenado
   function shutdown(code = 0) {
     console.log('🛑 Apagando servidor...');
     server.close(() => {
@@ -61,5 +98,4 @@ if (!isTest) {
   process.on('SIGTERM', () => shutdown(0));
 }
 
-// Exporta el app (supertest lo usa directo); en prod igual funciona lo anterior
 module.exports = app;

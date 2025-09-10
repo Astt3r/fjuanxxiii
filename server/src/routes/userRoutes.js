@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Rutas placeholder para usuarios
+// Endpoint usuarios aún no implementado: responde 501 hasta definir especificación
 router.get('/', (req, res) => {
   res.status(501).json({
     success: false,

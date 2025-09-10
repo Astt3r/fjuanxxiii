@@ -596,7 +596,7 @@ const Home = () => {
                   className="group"
                 >
                   <article className="bg-white rounded-3xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500 border border-gray-100 h-full">
-                    {/* Imagen o placeholder */}
+                    {/* Contenedor imagen destacada */}
                     <div className="relative overflow-hidden">
                       {noticia.imagen_url ? (
                         <div className="h-56 bg-gradient-to-br from-primary-400 to-primary-600 overflow-hidden">

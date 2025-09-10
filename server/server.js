@@ -8,8 +8,8 @@ connectDB();
 const PORT = process.env.PORT || 5001;
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`);
-  console.log(`📊 Modo: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Servidor ejecutándose en puerto ${PORT}`);
+  console.log(`Modo: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Cliente: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
 });
 

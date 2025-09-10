@@ -1,5 +1,5 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const { genSalt, hash, compare } = require('../utils/password');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
@@ -53,7 +53,7 @@ router.post('/login', [
   if (!users.length) { registerFail(req.ip, email); registerFailEmail(email); return R.fail(res, 'Credenciales inválidas', 401); }
 
     const user = users[0];
-    const valid = await bcrypt.compare(password, user.password);
+  const valid = await compare(password, user.password);
   if (!valid) { registerFail(req.ip, email); registerFailEmail(email); return R.fail(res, 'Credenciales inválidas', 401); }
 
     // Éxito → limpiar contadores
@@ -132,9 +132,10 @@ if(process.env.DISABLE_REGISTER === 'true' || process.env.REGISTER_OPEN !== 'tru
       let role = 'admin';
   // Si REGISTER_OPEN != 'true' simplemente bloqueamos (sin invitations)
   if(process.env.REGISTER_OPEN !== 'true') return R.fail(res,'Registro deshabilitado',403);
-      const saltRounds = Math.max(parseInt(process.env.BCRYPT_COST||'12',10),12);
-      const hash = await bcrypt.hash(password, saltRounds);
-      await db.query('INSERT INTO usuarios (nombre, email, password, rol, estado) VALUES (?,?,?,? ,"activo")', [nombre||email.split('@')[0], email, hash, role]);
+  const saltRounds = Math.max(parseInt(process.env.BCRYPT_COST||'12',10),12);
+  const salt = await genSalt(saltRounds);
+  const hashed = await hash(password, salt);
+  await db.query('INSERT INTO usuarios (nombre, email, password, rol, estado) VALUES (?,?,?,? ,"activo")', [nombre||email.split('@')[0], email, hashed, role]);
       R.created(res,{ registered:true });
     } catch(_e){
       if(_e.code==='ER_DUP_ENTRY') return R.fail(res,'Credenciales inválidas',409);

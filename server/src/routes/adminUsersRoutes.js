@@ -1,5 +1,5 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const { genSalt, hash } = require('../utils/password');
 const router = express.Router();
 const db = require('../config/database');
 const authRoutes = require('./authRoutes'); // para verifyToken
@@ -48,7 +48,7 @@ async function generarEmailDesdeNombre(nombre) {
   return email;
 }
 
-// POST crear usuario nuevo (rol siempre 'contenido' y email autogenerado)
+// POST crear usuario (rol forzado 'contenido'; email generado a partir del nombre)
 router.post('/', authRoutes.verifyToken, requireRole('admin','propietario'), async (req,res) => {
   try {
     const { nombre, password } = req.body;
@@ -60,9 +60,10 @@ router.post('/', authRoutes.verifyToken, requireRole('admin','propietario'), asy
 
     const email = await generarEmailDesdeNombre(nombre);
     const finalRol = 'contenido';
-    const cost = Math.max(parseInt(process.env.BCRYPT_COST||'12',10),12);
-    const hash = await bcrypt.hash(password, cost);
-    await db.query('INSERT INTO usuarios (nombre,email,password,rol,estado,institucion) VALUES (?,?,?,?,"activo",?)',[nombre, email, hash, finalRol, 'Fundación Juan XXIII']);
+  const cost = Math.max(parseInt(process.env.BCRYPT_COST||'12',10),12);
+  const salt = await genSalt(cost);
+  const hashed = await hash(password, salt);
+  await db.query('INSERT INTO usuarios (nombre,email,password,rol,estado,institucion) VALUES (?,?,?,?,"activo",?)',[nombre, email, hashed, finalRol, 'Fundación Juan XXIII']);
     const inserted = await db.query('SELECT id, nombre, email, rol, estado, ultimo_acceso, created_at FROM usuarios WHERE email=?',[email]);
     res.status(201).json({ ok:true, created:true, usuario: inserted[0] });
   } catch(err){

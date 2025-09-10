@@ -75,22 +75,34 @@ if(process.env.ENFORCE_HTTPS === 'true'){
 // Middleware general
 app.use(compression());
 app.use(limiter);
-const allowedOrigins = [
+
+// CORS unificado (dev/prod) con callback de origen y PATCH habilitado
+const defaultAllowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000'
-];
+  'https://portal.fjuanxxiii.cl',
+  'https://api.fjuanxxiii.cl',
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+const envOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envOrigins]));
+
 app.use(cors({
-  origin: function(origin, cb){
-    if(!origin) return cb(null, true); // permitir no-CORS (curl, server-side)
-    if(allowedOrigins.includes(origin)) return cb(null,true);
-    return cb(new Error('CORS bloqueado'), false);
+  origin(origin, cb) {
+    if (!origin) return cb(null, true); // permitir no-CORS (curl, server-side)
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS bloqueado: ${origin}`), false);
   },
   credentials: true,
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

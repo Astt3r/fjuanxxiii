@@ -1,27 +1,26 @@
+require('dotenv').config();
+console.log('[DB] host:', process.env.DB_HOST);
 const mysql = require('mysql2/promise');
 
 // Configuración de la base de datos
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'fjuan_xxiii',
-  port: process.env.DB_PORT || 3306,
+const pool = mysql.createPool({
+  host: process.env.DB_HOST, 
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0,
-  charset: 'utf8mb4'
-};
+  queueLimit: 0
+});
 
-// Crear pool de conexiones
-const pool = mysql.createPool(dbConfig);
-
+module.exports = { pool };
 // Función para conectar a la base de datos
 const connectDB = async () => {
   try {
     // Probar la conexión
     const connection = await pool.getConnection();
-    console.log('✅ Conectado a MySQL');
+  console.log('Conectado a MySQL');
     connection.release();
     
     // Crear las tablas si no existen
@@ -67,7 +66,7 @@ const createTables = async () => {
         if (!/contenido/.test(type)) {
           try {
             await pool.execute("ALTER TABLE usuarios MODIFY rol ENUM('admin','propietario','contenido') DEFAULT 'admin'");
-            console.log('🔧 Actualizado ENUM usuarios.rol para incluir valor contenido');
+            console.log('Actualizado ENUM usuarios.rol para incluir valor contenido');
           } catch(alterErr){
             console.warn('⚠️  No se pudo actualizar ENUM usuarios.rol:', alterErr.message);
           }
@@ -169,7 +168,7 @@ const createTables = async () => {
       if (colDest.length) {
         try {
           await pool.execute('ALTER TABLE colegios DROP COLUMN destacado');
-          console.log('🔧 Eliminada columna obsoleta colegios.destacado');
+          console.log('Eliminada columna obsoleta colegios.destacado');
         } catch(dropErr){
           console.warn('⚠️  No se pudo eliminar columna colegios.destacado (ignorado):', dropErr.message);
         }
@@ -267,7 +266,7 @@ const createTables = async () => {
     try {
       const [colImg] = await pool.query("SHOW COLUMNS FROM noticias_imagenes LIKE 'tamaño'");
       if (colImg.length) {
-        console.log('🔧 Migrando columna noticias_imagenes.tamaño -> tamano');
+  console.log('Migrando columna noticias_imagenes.tamaño -> tamano');
         await pool.execute('ALTER TABLE noticias_imagenes CHANGE COLUMN `tamaño` `tamano` INT');
       }
   } catch(_migErr){ console.warn('⚠️  No se pudo verificar/migrar columna tamaño en noticias_imagenes:'); }
@@ -278,7 +277,7 @@ const createTables = async () => {
       }
       const [colArcLegacy] = await pool.query("SHOW COLUMNS FROM archivos LIKE 'tamaño'");
       if (colArcLegacy.length) {
-        console.log('🔧 Migrando columna archivos.tamaño -> tamano');
+  console.log('Migrando columna archivos.tamaño -> tamano');
         await pool.execute('ALTER TABLE archivos CHANGE COLUMN `tamaño` `tamano` INT');
       }
   } catch(_mig2){ console.warn('⚠️  Migración columnas archivos omitida:'); }
@@ -304,7 +303,7 @@ const createTables = async () => {
       console.warn('⚠️  Error en backfill de imágenes (no crítico)');
     }
 
-    console.log('✅ Tablas de base de datos verificadas/creadas');
+  console.log('Tablas de base de datos verificadas/creadas');
   } catch (error) {
     console.error('❌ Error creando tablas:', error.message);
     throw error;

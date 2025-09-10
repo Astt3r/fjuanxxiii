@@ -46,6 +46,11 @@
     "npm": ">=8.0.0"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "multer": "^2.0.2",
     "node-fetch": "^2.7.0"
+  },
+  "optionalDependencies": {
+    "bcrypt": "^6.0.0"
   }
 }

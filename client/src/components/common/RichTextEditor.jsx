@@ -285,7 +285,7 @@ const RichTextEditor = ({
      const ok = await beforeImageUpload();
      if (ok !== true) {
        alert(typeof ok === 'string' ? ok : 'No se puede subir la imagen todavía.');
-       return; // 👈 Abortamos: NO insertamos placeholder
+  return; // Evita insertar estructura si ya existe contenido
      }
    }
    
@@ -388,7 +388,7 @@ const RichTextEditor = ({
       }
     } catch (e) {
       alert(e?.message || 'Error al subir la imagen');
-      // 2) Limpieza del placeholder si algo falló
+  // Limpieza de marcador temporal si falló
      const editor = editorRef.current;
      if (editor) {
        const ph = editor.querySelector(`figure[data-temp="${tempId}"]`);

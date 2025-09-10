@@ -3,14 +3,32 @@ import { buildMediaUrl } from '../utils/media';
 
 // Configuración base de axios
 // Fallback coherente con puerto por defecto del servidor (5003) si no se define REACT_APP_API_URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5003/api';
+const API_BASE_URL =
+   process.env.REACT_APP_API_URL
+   // si estamos en portal.<dominio>, usar api.<dominio>
+   || (typeof window !== 'undefined' &&
+       window.location.origin.startsWith('https://portal.')
+         ? window.location.origin.replace('https://portal.', 'https://api.') + '/api'
+         : 'http://localhost:5003/api');
+
+
 
 // Crear instancia de axios (no fijamos Content-Type por defecto para permitir FormData dinámico)
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  withCredentials: true,
   headers: {},
+  timeout: 10000, // 10 segundos
 });
+
+const allowedOrigins = (process.env.CORS_ORIGINS
+  || process.env.CLIENT_URL
+  || process.env.FRONTEND_URL
+  || 'http://localhost:3000'
+).split(',').map(s => s.trim()).filter(Boolean);
+
+
+
 
 // Interceptor para agregar token de autenticación
 api.interceptors.request.use(
@@ -25,6 +43,8 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+
 
 // Interceptor para manejar respuestas y errores
 api.interceptors.response.use(

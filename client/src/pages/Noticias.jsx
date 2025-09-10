@@ -329,7 +329,7 @@ const Noticias = () => {
                       transition={{ duration: 0.6, delay: index * 0.1 }}
                       className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 overflow-hidden group"
                     >
-                    {/* Imagen o placeholder */}
+                    {/* Contenedor de imagen principal */}
                     <div className="h-48 bg-gradient-to-br from-blue-400 to-blue-600 relative overflow-hidden">
                       {noticia.imagen_url ? (
                         <img 

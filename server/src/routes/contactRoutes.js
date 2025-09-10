@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Rutas placeholder para contacto
+// Endpoint contacto pendiente de implementación real
 router.post('/send', (req, res) => {
   res.status(501).json({
     success: false,

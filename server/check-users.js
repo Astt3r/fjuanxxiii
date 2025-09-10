@@ -10,8 +10,9 @@ async function checkUsers() {
     const [admin] = await db.execute('SELECT * FROM usuarios WHERE rol = "admin" LIMIT 1');
     if (admin.length === 0) {
       console.log('⚠️  No hay usuarios admin. Creando usuario admin por defecto...');
-      const bcrypt = require('bcryptjs');
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+  const { genSalt, hash } = require('./src/utils/password');
+  const salt = await genSalt(10);
+  const hashedPassword = await hash('admin123', salt);
       
       await db.execute(`
         INSERT INTO usuarios (nombre, email, password, rol, estado) 
