@@ -414,7 +414,7 @@ const GestionarContenido = () => {
   }, [stats]);
   useEffect(() => {
     refreshStats();
-  }, []);
+  }, [refreshStats]);
 
 
   const getStatusBadge = (estado) => {

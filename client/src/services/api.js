@@ -21,15 +21,6 @@ const api = axios.create({
   timeout: 10000, // 10 segundos
 });
 
-const allowedOrigins = (process.env.CORS_ORIGINS
-  || process.env.CLIENT_URL
-  || process.env.FRONTEND_URL
-  || 'http://localhost:3000'
-).split(',').map(s => s.trim()).filter(Boolean);
-
-
-
-
 // Interceptor para agregar token de autenticación
 api.interceptors.request.use(
   (config) => {
