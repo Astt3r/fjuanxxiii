@@ -118,10 +118,10 @@ const Colegios = () => {
             <h3 className="text-lg font-semibold text-gray-900 truncate">
               {colegio.nombre}
             </h3>
-            {colegio.año_fundacion && (
+            {colegio.anio_fundacion && (
               <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
                 <CalendarIcon className="h-4 w-4" />
-                <span>Fundado en {colegio.año_fundacion}</span>
+                <span>Fundado en {colegio.anio_fundacion}</span>
               </div>
             )}
           </div>

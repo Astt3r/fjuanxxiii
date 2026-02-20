@@ -52,7 +52,7 @@ const seedDatabase = async () => {
 
     // 3. Insertar colegios
     await query(`
-      INSERT IGNORE INTO colegios (nombre, slug, descripcion, direccion, telefono, email, website, \`año_fundacion\`, estado) VALUES 
+      INSERT IGNORE INTO colegios (nombre, slug, descripcion, direccion, telefono, email, website, anio_fundacion, estado) VALUES 
       (
         'Colegio San Rafael Arcángel',
         'san-rafael-arcangel',

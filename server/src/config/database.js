@@ -161,7 +161,7 @@ const createTables = async () => {
         website VARCHAR(255),
         logo VARCHAR(255),
         imagen_principal VARCHAR(255),
-        \`año_fundacion\` INT,
+        anio_fundacion INT,
         estado ENUM('activo', 'inactivo') DEFAULT 'activo',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

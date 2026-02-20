@@ -18,12 +18,12 @@ router.get('/', async (req, res) => {
         website,
         logo,
         imagen_principal,
-        \`año_fundacion\`,
+        anio_fundacion,
         estado,
         created_at
       FROM colegios 
       WHERE estado = 'activo' 
-      ORDER BY \`año_fundacion\` ASC
+      ORDER BY anio_fundacion ASC
     `);
     
     res.json(schools);
@@ -49,7 +49,7 @@ router.get('/:id', async (req, res) => {
         website,
         logo,
         imagen_principal,
-        \`año_fundacion\`,
+        anio_fundacion,
         estado,
         created_at
       FROM colegios 
