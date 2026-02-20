@@ -86,7 +86,7 @@ router.get('/', async (req,res)=>{
     if(categoria){ sql+=' AND n.categoria=?'; params.push(categoria); }
     if(destacada){ sql+=' AND n.destacado=?'; params.push(destacada==='true'); }
     sql+=' ORDER BY n.fecha_publicacion DESC';
-    if(limite){ const l = parseInt(limite); const p=parseInt(pagina); sql+=' LIMIT ? OFFSET ?'; params.push(l,(p-1)*l); }
+    if(limite){ const l = parseInt(limite); const p=parseInt(pagina); sql+=` LIMIT ${l} OFFSET ${(p-1)*l}`; }
     const rows = await db.query(sql, params);
     R.ok(res, rows);
   } catch(e){ console.error(e); R.fail(res,'Error al obtener noticias',500,{error:e.message}); }
@@ -148,7 +148,7 @@ router.get('/admin/list', authenticateToken, async (req,res)=>{
     if(q){ sql+=' AND (n.titulo LIKE ? OR n.resumen LIKE ?)'; params.push('%'+q+'%','%'+q+'%'); }
     sql+=' ORDER BY n.created_at DESC';
     const l = parseInt(limite); const p = parseInt(pagina);
-    if(l){ sql+=' LIMIT ? OFFSET ?'; params.push(l,(p-1)*l); }
+    if(l){ sql+=` LIMIT ${l} OFFSET ${(p-1)*l}`; }
     const rows = await db.query(sql, params);
     R.ok(res, rows);
   } catch(e){ console.error(e); R.fail(res,'Error al obtener listado administrativo',500,{error:e.message}); }

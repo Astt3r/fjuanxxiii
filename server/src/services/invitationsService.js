@@ -16,7 +16,7 @@ async function createInvitation({ email=null, role='admin', expiresAt=null, crea
 
 async function listInvitations({ page=1, limit=20 }) {
   const offset = (page-1)*limit;
-  const rows = await db.query(`SELECT id, email, role, expires_at, used_at, created_by, created_at FROM invitations ORDER BY id DESC LIMIT ? OFFSET ?`,[limit, offset]);
+  const rows = await db.query(`SELECT id, email, role, expires_at, used_at, created_by, created_at FROM invitations ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`);
   return rows;
 }
 

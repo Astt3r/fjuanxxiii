@@ -30,8 +30,7 @@ router.get('/', async (req, res) => {
     if (tipo) { query += ' AND tipo = ?'; params.push(tipo); }
   if (estado) { query += ' AND estado = ?'; params.push(estado); } else if(!includeEliminados){ query += " AND estado <> 'eliminado'"; }
 
-    query += ' ORDER BY fecha_evento ASC, hora_inicio ASC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    query += ` ORDER BY fecha_evento ASC, hora_inicio ASC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
 
     const eventos = await db.query(query, params);
 

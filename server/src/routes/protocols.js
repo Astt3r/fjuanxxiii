@@ -67,8 +67,8 @@ router.get('/', async (req, res) => {
       LEFT JOIN usuarios u ON p.subido_por = u.id
       ${whereSql}
       ORDER BY p.created_at DESC
-      LIMIT ? OFFSET ?`;
-    const data = await db.query(sql, [...params, limit, offset]);
+      LIMIT ${limit} OFFSET ${offset}`;
+    const data = await db.query(sql, params);
 
     const [[{ total }]] = await db.query(
       `SELECT COUNT(*) AS total FROM protocolos p ${whereSql}`,
