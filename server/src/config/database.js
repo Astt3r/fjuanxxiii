@@ -3,7 +3,7 @@ console.log('[DB] host:', process.env.DB_HOST);
 const mysql = require('mysql2/promise');
 
 // Configuración de la base de datos
-const pool = mysql.createPool({
+const poolOptions = {
   host: process.env.DB_HOST, 
   port: Number(process.env.DB_PORT || 3306),
   user: process.env.DB_USER,
@@ -11,8 +11,15 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
-});
+  queueLimit: 0,
+};
+
+// Habilitar SSL para proveedores cloud (TiDB, PlanetScale, etc.)
+if (process.env.DB_SSL === 'true') {
+  poolOptions.ssl = { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' };
+}
+
+const pool = mysql.createPool(poolOptions);
 
 module.exports = { pool };
 // Función para conectar a la base de datos

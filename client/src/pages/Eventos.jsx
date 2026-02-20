@@ -7,7 +7,6 @@ const Eventos = () => {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
-  // 👉 Función estable: cambia solo cuando cambia 'fechaSeleccionada'
   const cargarEventos = useCallback(async () => {
     try {
       setLoading(true); // muestra skeleton al cambiar de mes
@@ -27,7 +26,6 @@ const Eventos = () => {
     }
   }, [fechaSeleccionada]);
 
-  // 👉 Efecto depende de la función estable
   useEffect(() => {
     cargarEventos();
   }, [cargarEventos]);

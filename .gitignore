@@ -59,6 +59,11 @@ client/public/uploads/
 *.sqlite
 *.sqlite3
 
+# SQL dumps (contienen datos sensibles)
+server/migrations/*.sql
+!server/migrations/2025-08-18-hardening.sql
+server/scripts/*.sql
+
 # IDE files
 .vscode/
 .idea/
