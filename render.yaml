@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: fjuanxxiii-api
+    name: fjuanxxiii
     runtime: node
     region: oregon
     plan: free
